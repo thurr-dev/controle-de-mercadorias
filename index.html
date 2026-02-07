@@ -3,184 +3,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV Mini Adega - Profissional</title>
+    <title>PDV Dark - Precisão Total</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
-            --bg: #0f0f0f; --card: #1a1a1a; --text: #f0f0f0;
-            --primary: #3498db; --success: #27ae60; --danger: #e74c3c;
-            --accent: #f1c40f; --border: #333;
+            --bg: #0a0a0a; --card: #161616; --text: #eee;
+            --primary: #3498db; --success: #2ecc71; --border: #333;
         }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        .container { max-width: 900px; margin: auto; }
+        .container { max-width: 600px; margin: auto; }
         
-        /* Notificação de Concluído */
-        #toast { 
-            visibility: hidden; min-width: 250px; background-color: var(--success); color: white; 
-            text-align: center; border-radius: 8px; padding: 16px; position: fixed; 
-            z-index: 100; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: bold;
+        /* Scanner focado */
+        #interactive.viewport { 
+            width: 100%; height: 250px; border: 2px solid var(--primary); 
+            display: none; border-radius: 15px; overflow: hidden; position: relative;
         }
-        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        #interactive video { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Overlay de mira para ajudar a precisão */
+        .scanner-laser {
+            position: absolute; top: 50%; left: 10%; width: 80%; height: 2px;
+            background: red; box-shadow: 0 0 8px red; z-index: 10; transform: translateY(-50%);
+        }
 
-        /* Scanner e Identificação */
-        #interactive.viewport { width: 100%; height: 200px; border: 2px solid var(--primary); display: none; margin-bottom: 15px; border-radius: 12px; overflow: hidden; }
-        #info-scan { background: #222; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; border-left: 5px solid var(--accent); }
+        /* Modal de Confirmação de Venda */
+        #modal-venda {
+            display: none; background: var(--card); padding: 20px; border-radius: 12px;
+            border: 2px solid var(--success); margin-top: 15px; text-align: center;
+        }
 
-        /* Layout */
         .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-        input, select, button { padding: 12px; background: #252525; border: 1px solid var(--border); border-radius: 6px; color: white; font-size: 14px; }
-        .btn-main { background: var(--primary); font-weight: bold; border: none; cursor: pointer; }
-        .btn-venda { background: var(--success); font-weight: bold; border: none; width: 100%; margin-top: 10px; }
-
-        /* Carrinho e Vendas */
-        .painel-checkout { background: #1b2e23; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--success); }
-        .item-carrinho { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #2d5a3f; font-size: 0.9em; }
-
+        .form-grid { display: grid; gap: 10px; }
+        input, button { padding: 14px; background: #222; border: 1px solid var(--border); border-radius: 8px; color: white; font-size: 16px; }
+        .btn-blue { background: var(--primary); border: none; font-weight: bold; width: 100%; cursor: pointer; }
+        .btn-green { background: var(--success); border: none; font-weight: bold; width: 100%; cursor: pointer; margin-top: 10px; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; color: #777; padding: 10px; border-bottom: 2px solid var(--border); }
-        td { padding: 12px; border-bottom: 1px solid var(--border); }
-
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+        
+        #toast { 
+            visibility: hidden; background: var(--success); color: #fff; text-align: center; 
+            border-radius: 5px; padding: 10px; position: fixed; z-index: 100; left: 50%; 
+            bottom: 20px; transform: translateX(-50%); 
+        }
+        #toast.show { visibility: visible; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div id="toast">✅ Produto Cadastrado com Sucesso!</div>
+    <div id="toast">✅ Concluído!</div>
 
-    <h2 style="text-align:center; color:var(--primary)">🏪 PDV Mini Adega Pró</h2>
+    <h2 style="text-align:center;">🏪 PDV - Mini Adega</h2>
 
-    <button class="btn-main" style="width:100%; margin-bottom:10px;" onclick="toggleScanner()">📷 ABRIR CÂMERA PARA VENDA / CADASTRO</button>
-    <div id="interactive" class="viewport"></div>
-
-    <div id="info-scan">
-        <span style="color:var(--accent); font-size:0.8em;">PRODUTO IDENTIFICADO:</span><br>
-        <strong id="scan-nome">---</strong> | <span id="scan-preco">R$ 0,00</span>
+    <button class="btn-blue" onclick="abrirScanner()">📷 ESCANEAR PARA VENDER</button>
+    
+    <div id="interactive" class="viewport">
+        <div class="scanner-laser"></div>
     </div>
 
-    <div class="painel-checkout" id="painelCarrinho" style="display:none;">
-        <h4 style="margin-top:0;">🛒 Itens na Venda:</h4>
-        <div id="listaCarrinho"></div>
-        <div style="margin-top:10px; border-top: 1px solid var(--success); padding-top:10px; font-weight:bold;">
-            TOTAL: <span id="totalCarrinho" style="color:var(--success); font-size:1.2em;">R$ 0,00</span>
+    <div id="modal-venda">
+        <h3 id="venda-nome" style="color:var(--success); margin:0;">NOME DO PRODUTO</h3>
+        <p id="venda-ean" style="color:#888; font-size:12px;"></p>
+        <div style="margin: 15px 0;">
+            <label>Quantidade sendo vendida:</label><br>
+            <input type="number" id="venda-qtd" value="1" min="1" style="width:80px; text-align:center; font-size:20px; margin-top:10px;">
         </div>
-        <button class="btn-venda" onclick="finalizarVenda()">CONCLUIR VENDA (SUBTRAIR ESTOQUE)</button>
+        <p>Preço Unitário: <strong id="venda-preco">R$ 0,00</strong></p>
+        <button class="btn-green" onclick="confirmarBaixa()">CONFIRMAR BAIXA</button>
+        <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; margin-top:10px; cursor:pointer;">Cancelar</button>
     </div>
 
-    <div class="card">
-        <h4 style="margin:0 0 10px 0;">📦 Cadastro Rápido</h4>
+    <div class="card" style="margin-top:20px;">
+        <h4 style="margin-top:0;">📦 Novo Cadastro</h4>
         <div class="form-grid">
             <input type="text" id="ean" placeholder="Código de Barras">
             <input type="text" id="nome" placeholder="Nome do Produto">
-            <input type="number" id="qtd" placeholder="Estoque">
-            <input type="number" id="preco" placeholder="Preço R$">
-            <button class="btn-main" onclick="cadastrar()">SALVAR PRODUTO</button>
+            <input type="number" id="estoque-inicial" placeholder="Qtd em Estoque">
+            <input type="number" id="preco-venda" placeholder="Preço de Venda R$">
+            <button class="btn-blue" onclick="cadastrar()">SALVAR PRODUTO</button>
         </div>
     </div>
 
     <div class="card">
-        <h4 style="margin:0 0 10px 0;">📋 Estoque Registrado</h4>
-        <input type="text" id="busca" placeholder="🔍 Pesquisar no estoque..." onkeyup="renderizar()" style="width:100%; margin-bottom:10px;">
-        <div style="overflow-x:auto;">
-            <table>
-                <thead><tr><th>Produto</th><th>Qtd</th><th>Preço</th><th>Ação</th></tr></thead>
-                <tbody id="tabelaEstoque"></tbody>
-            </table>
-        </div>
+        <h4>📋 Produtos Registrados</h4>
+        <table>
+            <tbody id="listaProdutos"></tbody>
+        </table>
     </div>
 </div>
 
 <script>
-    let estoque = JSON.parse(localStorage.getItem('mini_estoque_v3')) || [];
-    let carrinho = [];
+    let estoque = JSON.parse(localStorage.getItem('adega_estoque_v4')) || [];
+    let produtoEncontrado = null;
 
     function tocarBip() {
-        const context = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = context.createOscillator();
-        const gain = context.createGain();
-        osc.type = "sine"; osc.frequency.setValueAtTime(900, context.currentTime);
-        gain.gain.setValueAtTime(0.1, context.currentTime);
-        osc.connect(gain); gain.connect(context.destination);
-        osc.start(); osc.stop(context.currentTime + 0.1);
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(1000, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.1);
     }
 
-    function mostrarToast() {
-        const x = document.getElementById("toast");
-        x.className = "show";
-        setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
-    }
-
-    function toggleScanner() {
-        const div = document.getElementById('interactive');
-        if (div.style.display === 'block') { Quagga.stop(); div.style.display = 'none'; }
-        else {
-            div.style.display = 'block';
-            Quagga.init({
-                inputStream: { name: "Live", type: "LiveStream", target: div, constraints: { facingMode: "environment" } },
-                decoder: { readers: ["ean_reader", "upc_reader", "code_128_reader"] }
-            }, err => { if(!err) Quagga.start(); });
-        }
+    function abrirScanner() {
+        document.getElementById('interactive').style.display = 'block';
+        document.getElementById('modal-venda').style.display = 'none';
+        
+        Quagga.init({
+            inputStream: { 
+                name: "Live", 
+                type: "LiveStream", 
+                target: document.querySelector('#interactive'),
+                constraints: { facingMode: "environment", focusMode: "continuous" }
+            },
+            decoder: { 
+                readers: ["ean_reader"], // Focado apenas em EAN de mercado
+                multiple: false 
+            },
+            locate: true
+        }, err => {
+            if(!err) Quagga.start();
+        });
     }
 
     Quagga.onDetected(data => {
         const cod = data.codeResult.code;
-        tocarBip();
-        const item = estoque.find(i => i.ean === cod);
+        produtoEncontrado = estoque.find(i => i.ean === cod);
 
-        if(item) {
-            // Identificação do produto na hora da venda
-            document.getElementById('info-scan').style.display = 'block';
-            document.getElementById('scan-nome').innerText = item.nome;
-            document.getElementById('scan-preco').innerText = `R$ ${item.preco.toFixed(2)}`;
+        if(produtoEncontrado) {
+            tocarBip();
+            Quagga.stop();
+            document.getElementById('interactive').style.display = 'none';
             
-            // Adiciona ao carrinho temporário
-            carrinho.push(item);
-            atualizarCarrinho();
+            // Abre confirmação de venda
+            document.getElementById('modal-venda').style.display = 'block';
+            document.getElementById('venda-nome').innerText = produtoEncontrado.nome;
+            document.getElementById('venda-ean').innerText = "Cód: " + produtoEncontrado.ean;
+            document.getElementById('venda-preco').innerText = "R$ " + produtoEncontrado.preco.toFixed(2);
+            document.getElementById('venda-qtd').value = 1;
+            document.getElementById('venda-qtd').focus();
         } else {
+            // Se não encontrar, apenas bipa e avisa, mas não para a câmera
             document.getElementById('ean').value = cod;
-            alert("Produto não cadastrado! Código copiado para o formulário.");
         }
     });
 
-    function atualizarCarrinho() {
-        const lista = document.getElementById('listaCarrinho');
-        const painel = document.getElementById('painelCarrinho');
-        lista.innerHTML = '';
-        let total = 0;
-
-        if(carrinho.length > 0) painel.style.display = 'block';
-
-        carrinho.forEach((item, index) => {
-            total += item.preco;
-            lista.innerHTML += `
-                <div class="item-carrinho">
-                    <span>${item.nome}</span>
-                    <strong>R$ ${item.preco.toFixed(2)} <span onclick="removerCarrinho(${index})" style="color:var(--danger); cursor:pointer; margin-left:10px;">✖</span></strong>
-                </div>`;
-        });
-        document.getElementById('totalCarrinho').innerText = `R$ ${total.toFixed(2)}`;
+    function confirmarBaixa() {
+        const qtdVenda = parseInt(document.getElementById('venda-qtd').value);
+        
+        if(produtoEncontrado.qtd >= qtdVenda) {
+            produtoEncontrado.qtd -= qtdVenda;
+            salvar();
+            document.getElementById('modal-venda').style.display = 'none';
+            tocarBip();
+            setTimeout(() => { alert(`Venda de ${qtdVenda}x ${produtoEncontrado.nome} concluída!`); }, 100);
+        } else {
+            alert("Estoque insuficiente! Você tem apenas " + produtoEncontrado.qtd);
+        }
     }
 
-    function removerCarrinho(index) {
-        carrinho.splice(index, 1);
-        if(carrinho.length === 0) document.getElementById('painelCarrinho').style.display = 'none';
-        atualizarCarrinho();
-    }
-
-    function finalizarVenda() {
-        carrinho.forEach(itemCarrinho => {
-            const itemEstoque = estoque.find(i => i.id === itemCarrinho.id);
-            if(itemEstoque && itemEstoque.qtd > 0) itemEstoque.qtd--;
-        });
-        carrinho = [];
-        document.getElementById('painelCarrinho').style.display = 'none';
-        document.getElementById('info-scan').style.display = 'none';
-        salvar();
-        alert("Venda Concluída com Sucesso!");
+    function cancelarVenda() {
+        document.getElementById('modal-venda').style.display = 'none';
+        produtoEncontrado = null;
     }
 
     function cadastrar() {
@@ -188,39 +174,39 @@
             id: Date.now(),
             ean: document.getElementById('ean').value,
             nome: document.getElementById('nome').value,
-            qtd: parseInt(document.getElementById('qtd').value) || 0,
-            preco: parseFloat(document.getElementById('preco').value) || 0
+            qtd: parseInt(document.getElementById('estoque-inicial').value) || 0,
+            preco: parseFloat(document.getElementById('preco-venda').value) || 0
         };
-        if(!item.nome || !item.ean) return alert("Preencha Nome e Código!");
+        if(!item.nome || !item.ean) return alert("Preencha os campos!");
+        
         estoque.push(item);
         salvar();
-        mostrarToast();
-        limpar();
+        
+        // Toast de Concluído
+        const t = document.getElementById('toast');
+        t.className = "show";
+        setTimeout(() => t.className = "", 2000);
+        
+        document.querySelectorAll('input').forEach(i => i.value = '');
     }
 
     function salvar() {
-        localStorage.setItem('mini_estoque_v3', JSON.stringify(estoque));
+        localStorage.setItem('adega_estoque_v4', JSON.stringify(estoque));
         renderizar();
     }
 
     function renderizar() {
-        const busca = document.getElementById('busca').value.toLowerCase();
-        const corpo = document.getElementById('tabelaEstoque');
+        const corpo = document.getElementById('listaProdutos');
         corpo.innerHTML = '';
-
-        estoque.filter(i => i.nome.toLowerCase().includes(busca) || i.ean.includes(busca)).forEach(i => {
+        estoque.forEach(i => {
             corpo.innerHTML += `
                 <tr>
-                    <td><strong>${i.nome}</strong><br><small style="color:#666">${i.ean}</small></td>
-                    <td>${i.qtd}</td>
-                    <td style="color:var(--success)">R$ ${i.preco.toFixed(2)}</td>
-                    <td><button onclick="removerEstoque(${i.id})" style="border:none; background:none; color:var(--danger); cursor:pointer;">🗑️</button></td>
+                    <td><strong>${i.nome}</strong><br><small>${i.ean}</small></td>
+                    <td style="text-align:center">Qtd: ${i.qtd}</td>
+                    <td style="text-align:right">R$ ${i.preco.toFixed(2)}</td>
                 </tr>`;
         });
     }
-
-    function removerEstoque(id) { if(confirm("Remover do estoque?")) { estoque = estoque.filter(i => i.id !== id); salvar(); } }
-    function limpar() { document.querySelectorAll('input').forEach(i => i.value = ''); }
 
     renderizar();
 </script>
