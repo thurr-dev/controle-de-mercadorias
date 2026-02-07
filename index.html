@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDV Mini Adega - Mercado</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --topo: #2c3e50; --btn: #3498db; --venda: #27ae60; --danger: #e74c3c; --bg: #f4f7f6; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 10px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        
+        h2 { text-align: center; color: var(--topo); margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+
+        /* Scanner */
+        #interactive.viewport { width: 100%; height: 250px; border: 3px solid var(--topo); display: none; margin-bottom: 15px; border-radius: 10px; overflow: hidden; position: relative; }
+        #interactive video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Formulário */
+        .card { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+        input, select, button { padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        .btn-add { grid-column: 1 / -1; background: var(--btn); color: white; border: none; font-weight: bold; cursor: pointer; }
+        .btn-scan { background: var(--topo); color: white; width: 100%; margin-bottom: 10px; cursor: pointer; border: none; font-weight: bold; }
+
+        /* Painel de Vendas */
+        .painel-vendas { display: flex; justify-content: space-between; background: #d4edda; padding: 20px; border-radius: 8px; margin-bottom: 20px; color: #155724; font-size: 1.1em; border: 1px solid #c3e6cb; }
+        .valor-venda { font-weight: 800; font-size: 1.3em; }
+
+        /* Tabela e Filtro */
+        #busca { width: 100%; box-sizing: border-box; padding: 15px; margin-bottom: 15px; border: 2px solid var(--btn); border-radius: 8px; font-size: 16px; }
+        .table-res { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #eee; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
+        
+        .aviso-vencido { background-color: #f8d7da !important; }
+        .aviso-estoque { border-left: 6px solid #f39c12; }
+
+        /* Botões de Ação */
+        .btn-vender-row { background: var(--venda); color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .btn-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 18px; }
+
+        .backup-area { margin-top: 30px; display: flex; gap: 10px; }
+        .chart-box { margin-top: 30px; height: 300px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🏪 Sistema Mini Adega & Mercado</h2>
+
+    <button class="btn-scan" onclick="toggleScanner()">📷 ABRIR SCANNER (CÓDIGO DE BARRAS)</button>
+    <div id="interactive" class="viewport"></div>
+
+    <div class="card">
+        <div class="form-grid">
+            <input type="text" id="ean" placeholder="Cód. Barras">
+            <input type="text" id="nome" placeholder="Nome do Produto">
+            <select id="categoria">
+                <option value="Mercearia">Mercearia</option>
+                <option value="Bebidas">Bebidas</option>
+                <option value="Higiene">Higiene</option>
+                <option value="Limpeza">Limpeza</option>
+                <option value="Frios">Frios</option>
+                <option value="Outros">Outros</option>
+            </select>
+            <input type="number" id="qtd" placeholder="Qtd Estoque">
+            <input type="date" id="venc" title="Data de Vencimento">
+            <input type="number" id="preco" placeholder="Preço Venda R$">
+            <button class="btn-add" onclick="adicionar()">CADASTRAR PRODUTO NOVO</button>
+        </div>
+    </div>
+
+    <div class="painel-vendas">
+        <div>VENDAS HOJE: <span class="valor-venda" id="vendaTotal">R$ 0,00</span></div>
+        <div>ITENS: <span class="valor-venda" id="vendaQtd">0</span></div>
+    </div>
+
+    <input type="text" id="busca" placeholder="🔍 Buscar produto por nome ou código..." onkeyup="renderizar()">
+
+    <div class="table-res">
+        <table>
+            <thead>
+                <tr>
+                    <th>Produto / Categoria</th>
+                    <th>Qtd</th>
+                    <th>Vencimento</th>
+                    <th>Preço</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
+    </div>
+
+    <div class="chart-box">
+        <canvas id="graficoVendas"></canvas>
+    </div>
+
+    <div class="backup-area">
+        <button onclick="exportar()">📥 Baixar Backup</button>
+        <button onclick="document.getElementById('importFile').click()">📤 Carregar Backup</button>
+        <input type="file" id="importFile" style="display:none" onchange="importar(event)">
+    </div>
+</div>
+
+<script>
+    let estoque = JSON.parse(localStorage.getItem('minia_estoque')) || [];
+    let vendas = JSON.parse(localStorage.getItem('minia_vendas')) || [];
+
+    // --- LEITOR DE CÓDIGO DE BARRAS ---
+    function toggleScanner() {
+        const div = document.getElementById('interactive');
+        if (div.style.display === 'block') {
+            Quagga.stop();
+            div.style.display = 'none';
+        } else {
+            div.style.display = 'block';
+            Quagga.init({
+                inputStream: { name: "Live", type: "LiveStream", target: div, constraints: { facingMode: "environment" } },
+                decoder: { readers: ["ean_reader", "upc_reader", "code_128_reader"] }
+            }, err => { if(!err) Quagga.start(); });
+        }
+    }
+
+    Quagga.onDetected(data => {
+        const cod = data.codeResult.code;
+        document.getElementById('ean').value = cod;
+        
+        // Verifica se o produto já existe para dar baixa automática
+        const item = estoque.find(i => i.ean === cod);
+        if(item) {
+            Quagga.stop();
+            document.getElementById('interactive').style.display = 'none';
+            if(confirm(`VENDER 1 UNID: ${item.nome}?\nValor: R$ ${item.preco.toFixed(2)}`)) {
+                vender(item.id);
+            }
+        }
+    });
+
+    // --- FUNÇÕES DE ESTOQUE ---
+    function adicionar() {
+        const item = {
+            id: Date.now(),
+            ean: document.getElementById('ean').value,
+            nome: document.getElementById('nome').value,
+            cat: document.getElementById('categoria').value,
+            qtd: parseInt(document.getElementById('qtd').value) || 0,
+            venc: document.getElementById('venc').value,
+            preco: parseFloat(document.getElementById('preco').value) || 0
+        };
+        
+        if(!item.nome) return alert("Digite o nome do produto!");
+        estoque.push(item);
+        salvar();
+        limparCampos();
+    }
+
+    function vender(id) {
+        const item = estoque.find(i => i.id === id);
+        if(item && item.qtd > 0) {
+            item.qtd--;
+            vendas.push({ data: new Date().toLocaleDateString(), valor: item.preco });
+            salvar();
+        } else {
+            alert("Atenção: Produto sem estoque!");
+        }
+    }
+
+    function remover(id) {
+        if(confirm("Deseja excluir este produto do sistema?")) {
+            estoque = estoque.filter(i => i.id !== id);
+            salvar();
+        }
+    }
+
+    function salvar() {
+        localStorage.setItem('minia_estoque', JSON.stringify(estoque));
+        localStorage.setItem('minia_vendas', JSON.stringify(vendas));
+        renderizar();
+        atualizarGrafico();
+    }
+
+    function renderizar() {
+        const busca = document.getElementById('busca').value.toLowerCase();
+        const corpo = document.getElementById('corpoTabela');
+        corpo.innerHTML = '';
+        
+        // Atualiza Painel de Vendas
+        const hoje = new Date().toLocaleDateString();
+        const vendasHoje = vendas.filter(v => v.data === hoje);
+        const totalH = vendasHoje.reduce((acc, v) => acc + v.valor, 0);
+        
+        document.getElementById('vendaTotal').innerText = `R$ ${totalH.toFixed(2)}`;
+        document.getElementById('vendaQtd').innerText = vendasHoje.length;
+
+        // Filtra e exibe tabela
+        estoque.filter(i => i.nome.toLowerCase().includes(busca) || i.ean.includes(busca)).forEach(i => {
+            const diasVenc = i.venc ? Math.ceil((new Date(i.venc) - new Date()) / (1000*60*60*24)) : 999;
+            const classeLinha = diasVenc < 7 ? 'aviso-vencido' : (i.qtd < 5 ? 'aviso-estoque' : '');
+
+            corpo.innerHTML += `
+                <tr class="${classeLinha}">
+                    <td><strong>${i.nome}</strong><br><small>${i.cat} | ${i.ean}</small></td>
+                    <td>${i.qtd}</td>
+                    <td>${i.venc ? i.venc.split('-').reverse().join('/') : '--'}</td>
+                    <td>R$ ${i.preco.toFixed(2)}</td>
+                    <td>
+                        <button class="btn-vender-row" onclick="vender(${i.id})">BAIXA</button>
+                        <button class="btn-del" onclick="remover(${i.id})">🗑️</button>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    // --- GRÁFICO E BACKUP ---
+    let meuGrafico;
+    function atualizarGrafico() {
+        const ctx = document.getElementById('graficoVendas').getContext('2d');
+        const dias = Array.from({length: 7}, (_, i) => {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            return d.toLocaleDateString();
+        }).reverse();
+
+        const valores = dias.map(d => vendas.filter(v => v.data === d).reduce((acc, v) => acc + v.valor, 0));
+
+        if(meuGrafico) meuGrafico.destroy();
+        meuGrafico = new Chart(ctx, {
+            type: 'line',
+            data: { labels: dias, datasets: [{ label: 'Vendas R$ (7 dias)', data: valores, borderColor: '#27ae60', backgroundColor: 'rgba(39, 174, 96, 0.1)', fill: true }] },
+            options: { maintainAspectRatio: false }
+        });
+    }
+
+    function exportar() {
+        const blob = new Blob([JSON.stringify({estoque, vendas})], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'backup_mercado.json'; a.click();
+    }
+
+    function importar(e) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const d = JSON.parse(ev.target.result);
+            estoque = d.estoque; vendas = d.vendas;
+            salvar();
+        };
+        reader.readAsText(e.target.files[0]);
+    }
+
+    function limparCampos() {
+        document.getElementById('ean').value = '';
+        document.getElementById('nome').value = '';
+        document.getElementById('qtd').value = '';
+        document.getElementById('preco').value = '';
+    }
+
+    renderizar();
+    atualizarGrafico();
+</script>
+</body>
+</html>
