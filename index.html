@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Integrado - Mini Adega</title>
+    <title>PDV Inteligente - Mini Adega</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
         :root {
@@ -12,86 +12,73 @@
         }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .container { max-width: 800px; margin: auto; }
-        
         .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
-        h2, h3 { color: var(--primary); text-align: center; }
+        h3 { color: var(--primary); text-align: center; margin-top: 0; }
 
-        /* Scanner */
-        #interactive.viewport { width: 100%; height: 250px; border: 2px solid var(--primary); display: none; border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
-
-        /* Carrinho de Vendas */
+        #interactive.viewport { width: 100%; height: 200px; border: 2px solid var(--primary); display: none; border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+        
         .carrinho-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #333; }
-        .qtd-controles button { padding: 5px 10px; background: #333; border: 1px solid var(--primary); color: white; cursor: pointer; }
-        .total-venda { font-size: 1.5em; color: var(--success); text-align: right; padding: 15px; font-weight: bold; }
+        .qtd-controles button { padding: 5px 12px; background: #333; border: 1px solid var(--primary); color: white; cursor: pointer; border-radius: 4px; }
+        .total-venda { font-size: 1.6em; color: var(--success); text-align: right; padding: 10px; font-weight: bold; }
 
-        /* Botões */
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 10px; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 8px; }
         .btn-blue { background: var(--primary); color: white; }
         .btn-green { background: var(--success); color: white; }
-        .btn-whatsapp { background: #25d366; color: white; font-size: 12px; padding: 5px; width: auto; }
-
-        /* Histórico */
-        .data-extenso { color: var(--primary); font-weight: bold; margin-top: 15px; display: block; text-transform: capitalize; }
-        table { width: 100%; border-collapse: collapse; }
-        td, th { padding: 12px; text-align: left; border-bottom: 1px solid #222; }
-
-        .aviso { color: #f1c40f; font-size: 0.8em; font-weight: bold; }
+        
+        input { width: 100%; padding: 12px; margin-bottom: 10px; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
+        
+        .historico-dia { border-bottom: 1px solid #333; padding: 10px 0; }
+        .data-extenso { color: var(--primary); font-weight: bold; display: block; text-transform: capitalize; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #222; }
+        .aviso-estoque { color: #f1c40f; font-weight: bold; animation: pisca 1s infinite; }
+        @keyframes pisca { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
+        
+        .btn-cal { background: #e67e22; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🏪 Gestão & Vendas</h2>
+    <h3>🏪 Mini Adega & Mercado</h3>
 
     <div class="card">
         <button class="btn btn-blue" onclick="abrirScanner()">📷 ESCANEAR PRODUTO</button>
         <div id="interactive" class="viewport"></div>
-
-        <h3>🛒 Carrinho de Venda</h3>
-        <div id="listaCarrinho">
-            <p style="text-align:center; color:#666;">Passe um produto para iniciar a lista...</p>
-        </div>
+        <div id="listaCarrinho"></div>
         <div class="total-venda" id="totalCarrinho">R$ 0,00</div>
-        <button class="btn btn-green" id="btnFinalizar" style="display:none;" onclick="concluirVenda()">CONCLUIR E DESCONTAR ESTOQUE</button>
+        <button class="btn btn-green" id="btnFinalizar" style="display:none;" onclick="concluirVenda()">CONCLUIR VENDA (DESCONTAR)</button>
     </div>
 
     <div class="card">
-        <h3>📦 Cadastro / Estoque</h3>
-        <input type="text" id="cad-ean" placeholder="Cód. Barras" style="width:95%; padding:10px; margin-bottom:10px; background:#222; border:1px solid #333; color:white;">
-        <input type="text" id="cad-nome" placeholder="Nome do Produto" style="width:95%; padding:10px; margin-bottom:10px; background:#222; border:1px solid #333; color:white;">
-        <input type="number" id="cad-qtd" placeholder="Qtd Inicial" style="width:45%; padding:10px; background:#222; border:1px solid #333; color:white;">
-        <input type="number" id="cad-preco" placeholder="Preço R$" style="width:45%; padding:10px; background:#222; border:1px solid #333; color:white;">
-        <button class="btn btn-blue" style="margin-top:10px;" onclick="cadastrarProduto()">SALVAR NO ESTOQUE</button>
+        <h3>📦 Cadastro de Produto</h3>
+        <input type="text" id="cad-ean" placeholder="Código de Barras">
+        <input type="text" id="cad-nome" placeholder="Nome do Produto">
+        <input type="number" id="cad-qtd" placeholder="Quantidade em Estoque">
+        <input type="number" id="cad-preco" placeholder="Preço de Venda R$">
+        <label style="font-size: 12px; color: #888;">Data de Vencimento:</label>
+        <input type="date" id="cad-venc">
+        <button class="btn btn-blue" onclick="cadastrarProduto()">SALVAR NO SISTEMA</button>
     </div>
 
     <div class="card">
-        <h3>📊 Histórico de Vendas (Por Dia)</h3>
+        <h3>📊 Vendas por Dia</h3>
         <div id="historicoVendas"></div>
     </div>
 
     <div class="card">
-        <h3>📋 Produtos em Estoque</h3>
-        <div id="listaEstoque"></div>
+        <h3>📋 Lista de Estoque</h3>
+        <div id="listaEstoque" style="overflow-x:auto;"></div>
     </div>
 </div>
 
 <script>
-    let estoque = JSON.parse(localStorage.getItem('adega_estoque_v5')) || [];
-    let vendasGerais = JSON.parse(localStorage.getItem('adega_vendas_v5')) || [];
+    let estoque = JSON.parse(localStorage.getItem('adega_v6_estoque')) || [];
+    let vendasGerais = JSON.parse(localStorage.getItem('adega_v6_vendas')) || [];
     let carrinho = [];
-
     const WHATSAPP_NUMERO = "5531997371625";
 
-    // Funções de Áudio
-    function bip() {
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.start(); osc.stop(ctx.currentTime + 0.1);
-    }
-
-    // Scanner
     function abrirScanner() {
         const div = document.getElementById('interactive');
         div.style.display = 'block';
@@ -105,154 +92,135 @@
         const cod = data.codeResult.code;
         const item = estoque.find(i => i.ean === cod);
         if(item) {
-            bip();
-            Quagga.stop();
-            document.getElementById('interactive').style.display = 'none';
-            adicionarAoCarrinho(item);
+            Quagga.stop(); document.getElementById('interactive').style.display = 'none';
+            const existente = carrinho.find(c => c.ean === cod);
+            if(existente) existente.qtdVenda++; else carrinho.push({...item, qtdVenda: 1});
+            renderCarrinho();
         } else {
             document.getElementById('cad-ean').value = cod;
         }
     });
 
-    // Lógica do Carrinho
-    function adicionarAoCarrinho(produto) {
-        const existente = carrinho.find(c => c.ean === produto.ean);
-        if(existente) {
-            existente.qtdVenda++;
-        } else {
-            carrinho.push({...produto, qtdVenda: 1});
-        }
-        renderCarrinho();
-    }
-
-    function alterarQtdCarrinho(index, valor) {
-        carrinho[index].qtdVenda += valor;
-        if(carrinho[index].qtdVenda <= 0) carrinho.splice(index, 1);
-        renderCarrinho();
-    }
-
     function renderCarrinho() {
         const container = document.getElementById('listaCarrinho');
         const btnF = document.getElementById('btnFinalizar');
-        container.innerHTML = '';
-        let total = 0;
-
-        if(carrinho.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:#666;">Carrinho vazio.</p>';
-            btnF.style.display = 'none';
-        } else {
+        container.innerHTML = ''; let total = 0;
+        if(carrinho.length > 0) {
             btnF.style.display = 'block';
             carrinho.forEach((item, index) => {
                 total += (item.preco * item.qtdVenda);
                 container.innerHTML += `
                     <div class="carrinho-item">
-                        <div>
-                            <strong>${item.nome}</strong><br>
-                            <small>R$ ${item.preco.toFixed(2)} un.</small>
-                        </div>
+                        <span><strong>${item.nome}</strong></span>
                         <div class="qtd-controles">
-                            <button onclick="alterarQtdCarrinho(${index}, -1)">-</button>
-                            <span style="margin: 0 10px">${item.qtdVenda}</span>
-                            <button onclick="alterarQtdCarrinho(${index}, 1)">+</button>
+                            <button onclick="alterarQtd(${index}, -1)">-</button>
+                            <span style="padding:0 10px">${item.qtdVenda}</span>
+                            <button onclick="alterarQtd(${index}, 1)">+</button>
                         </div>
-                        <div>R$ ${(item.preco * item.qtdVenda).toFixed(2)}</div>
+                        <span>R$ ${(item.preco * item.qtdVenda).toFixed(2)}</span>
                     </div>`;
             });
-        }
+        } else { btnF.style.display = 'none'; }
         document.getElementById('totalCarrinho').innerText = `R$ ${total.toFixed(2)}`;
     }
 
-    // Finalizar Venda e Notificar
+    function alterarQtd(index, v) {
+        carrinho[index].qtdVenda += v;
+        if(carrinho[index].qtdVenda <= 0) carrinho.splice(index, 1);
+        renderCarrinho();
+    }
+
     function concluirVenda() {
         const hoje = new Date();
-        const dataFormatada = hoje.toLocaleDateString('pt-br', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const dataExtenso = hoje.toLocaleDateString('pt-br', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         let totalVenda = 0;
-        let alertas = [];
+        let mensagensAlerta = [];
 
-        carrinho.forEach(itemCarrinho => {
-            const itemEstoque = estoque.find(i => i.ean === itemCarrinho.ean);
-            if(itemEstoque) {
-                itemEstoque.qtd -= itemCarrinho.qtdVenda;
-                totalVenda += (itemCarrinho.preco * itemCarrinho.qtdVenda);
+        carrinho.forEach(itemC => {
+            const itemE = estoque.find(i => i.ean === itemC.ean);
+            if(itemE) {
+                itemE.qtd -= itemC.qtdVenda;
+                totalVenda += (itemC.preco * itemC.qtdVenda);
                 
-                // Verificar Estoque Baixo para Alerta
-                if(itemEstoque.qtd <= 3) {
-                    alertas.push(`⚠️ O produto *${itemEstoque.nome}* está acabando! Restam apenas ${itemEstoque.qtd} no estoque.`);
+                if(itemE.qtd <= 5) {
+                    mensagensAlerta.push(`❌ ESTOQUE BAIXO: *${itemE.nome}* tem apenas ${itemE.qtd} unidades restantes!`);
                 }
             }
         });
 
-        // Registrar no Histórico
-        vendasGerais.push({ data: dataFormatada, total: totalVenda, itens: carrinho.length });
-        
-        // Resetar Carrinho
+        vendasGerais.push({ data: dataExtenso, total: totalVenda });
         carrinho = [];
-        salvarTudo();
-        alert("Venda registrada e estoque atualizado!");
+        salvar();
+        alert("Venda Finalizada!");
 
-        // Enviar alertas via WhatsApp se houver
-        if(alertas.length > 0) {
-            const msg = window.encodeURIComponent(alertas.join("\n"));
+        if(mensagensAlerta.length > 0) {
+            const msg = window.encodeURIComponent(mensagensAlerta.join("\n"));
             window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${msg}`);
         }
     }
 
-    // Gerenciamento de Dados
     function cadastrarProduto() {
         const p = {
+            id: Date.now(),
             ean: document.getElementById('cad-ean').value,
             nome: document.getElementById('cad-nome').value,
             qtd: parseInt(document.getElementById('cad-qtd').value),
-            preco: parseFloat(document.getElementById('cad-preco').value)
+            preco: parseFloat(document.getElementById('cad-preco').value),
+            venc: document.getElementById('cad-venc').value
         };
         estoque.push(p);
-        salvarTudo();
-        alert("Produto salvo!");
+        salvar();
+        alert("Produto Registrado!");
+        limpar();
     }
 
-    function salvarTudo() {
-        localStorage.setItem('adega_estoque_v5', JSON.stringify(estoque));
-        localStorage.setItem('adega_vendas_v5', JSON.stringify(vendasGerais));
-        renderEstoque();
-        renderHistorico();
-        renderCarrinho();
+    // Função para Adicionar ao Calendário do Celular
+    function addAoCalendario(nome, dataVenc) {
+        if(!dataVenc) return alert("Sem data de vencimento!");
+        const data = dataVenc.replace(/-/g, '');
+        const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${encodeURIComponent(nome)}&dates=${data}/${data}&details=Produto+vencendo+no+estoque&sf=true&output=xml`;
+        window.open(url, '_blank');
+    }
+
+    function salvar() {
+        localStorage.setItem('adega_v6_estoque', JSON.stringify(estoque));
+        localStorage.setItem('adega_v6_vendas', JSON.stringify(vendasGerais));
+        renderEstoque(); renderHistorico(); renderCarrinho();
     }
 
     function renderEstoque() {
         const div = document.getElementById('listaEstoque');
-        div.innerHTML = '<table><tr><th>Produto</th><th>Estoque</th><th>Preço</th></tr>';
+        let html = '<table><tr><th>Item</th><th>Qtd</th><th>Venc.</th><th>Agenda</th></tr>';
         estoque.forEach(i => {
-            div.innerHTML += `<tr>
-                <td>${i.nome}<br><small>${i.ean}</small></td>
-                <td class="${i.qtd <= 3 ? 'aviso' : ''}">${i.qtd} un.</td>
-                <td>R$ ${i.preco.toFixed(2)}</td>
+            const classeQtd = i.qtd <= 5 ? 'aviso-estoque' : '';
+            html += `<tr>
+                <td>${i.nome}</td>
+                <td class="${classeQtd}">${i.qtd}</td>
+                <td>${i.venc ? i.venc.split('-').reverse().join('/') : '--'}</td>
+                <td><button class="btn-cal" onclick="addAoCalendario('${i.nome}', '${i.venc}')">📅</button></td>
             </tr>`;
         });
-        div.innerHTML += '</table>';
+        div.innerHTML = html + '</table>';
     }
 
     function renderHistorico() {
         const div = document.getElementById('historicoVendas');
         div.innerHTML = '';
-        
-        // Agrupar por data
-        const resumo = vendasGerais.reduce((acc, v) => {
+        const agrupado = vendasGerais.reduce((acc, v) => {
             acc[v.data] = (acc[v.data] || 0) + v.total;
             return acc;
         }, {});
-
-        for(let data in resumo) {
-            div.innerHTML += `
-                <div style="border-bottom:1px solid #333; padding:10px 0;">
-                    <span class="data-extenso">${data}</span>
-                    <span style="color:var(--success)">Faturamento: R$ ${resumo[data].toFixed(2)}</span>
-                </div>`;
+        for(let data in agrupado) {
+            div.innerHTML += `<div class="historico-dia">
+                <span class="data-extenso">${data}</span>
+                <span style="color:var(--success)">Total: R$ ${agrupado[data].toFixed(2)}</span>
+            </div>`;
         }
     }
 
-    // Inicialização
-    renderEstoque();
-    renderHistorico();
+    function limpar() { document.querySelectorAll('input').forEach(i => i.value = ''); }
+
+    renderEstoque(); renderHistorico();
 </script>
 </body>
 </html>
