@@ -2,225 +2,225 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV Inteligente - Mini Adega</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistema Adega Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
-        :root {
-            --bg: #0d0d0d; --card: #1a1a1a; --text: #e0e0e0;
-            --primary: #3498db; --success: #27ae60; --danger: #c0392b; --border: #333;
-        }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        .container { max-width: 800px; margin: auto; }
-        .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
-        h3 { color: var(--primary); text-align: center; margin-top: 0; }
+        :root { --bg: #050505; --card: #121212; --primary: #007bff; --success: #28a745; --danger: #dc3545; --text: #f8f9fa; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .card { background: var(--card); border: 1px solid #333; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        
+        /* Ajustes de Câmera */
+        #interactive.viewport { width: 100%; height: 250px; position: relative; overflow: hidden; border-radius: 10px; border: 2px solid var(--primary); display: none; margin-bottom: 10px; }
+        #interactive.viewport canvas, video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-bottom: 8px; color: white; }
+        .btn-blue { background: var(--primary); }
+        .btn-green { background: var(--success); }
+        .btn-repor { background: #6c757d; padding: 5px; font-size: 11px; width: auto; margin: 0; }
 
-        #interactive.viewport { width: 100%; height: 200px; border: 2px solid var(--primary); display: none; border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+        input { width: 100%; padding: 10px; margin-bottom: 10px; background: #222; border: 1px solid #444; color: white; box-sizing: border-box; }
         
-        .carrinho-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #333; }
-        .qtd-controles button { padding: 5px 12px; background: #333; border: 1px solid var(--primary); color: white; cursor: pointer; border-radius: 4px; }
-        .total-venda { font-size: 1.6em; color: var(--success); text-align: right; padding: 10px; font-weight: bold; }
-
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 8px; }
-        .btn-blue { background: var(--primary); color: white; }
-        .btn-green { background: var(--success); color: white; }
+        .item-carrinho { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding: 8px 0; }
+        .total-box { font-size: 1.8em; text-align: right; color: var(--success); margin: 15px 0; border-top: 1px solid #444; padding-top: 10px; }
         
-        input { width: 100%; padding: 12px; margin-bottom: 10px; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
-        
-        .historico-dia { border-bottom: 1px solid #333; padding: 10px 0; }
-        .data-extenso { color: var(--primary); font-weight: bold; display: block; text-transform: capitalize; }
-        
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #222; }
-        .aviso-estoque { color: #f1c40f; font-weight: bold; animation: pisca 1s infinite; }
-        @keyframes pisca { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
-        
-        .btn-cal { background: #e67e22; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #222; }
+        .alerta { color: #ffc107; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h3>🏪 Mini Adega & Mercado</h3>
+<div class="card">
+    <h2 style="text-align:center; color:var(--primary); margin:0 0 10px 0;">PDV - VENDAS</h2>
+    <button class="btn btn-blue" onclick="ligarCamera()">📷 ESCANEAR / ADICIONAR ITEM</button>
+    <button class="btn" style="background:#555; font-size:12px;" onclick="ligarCamera()">🔄 REPARAR FOCO</button>
+    <div id="interactive" class="viewport"></div>
 
-    <div class="card">
-        <button class="btn btn-blue" onclick="abrirScanner()">📷 ESCANEAR PRODUTO</button>
-        <div id="interactive" class="viewport"></div>
-        <div id="listaCarrinho"></div>
-        <div class="total-venda" id="totalCarrinho">R$ 0,00</div>
-        <button class="btn btn-green" id="btnFinalizar" style="display:none;" onclick="concluirVenda()">CONCLUIR VENDA (DESCONTAR)</button>
+    <div id="carrinhoLista">
+        <p style="text-align:center; color:#777;">Escaneie itens para somar...</p>
     </div>
+    
+    <div class="total-box">Total: <span id="valorTotal">R$ 0,00</span></div>
+    <button class="btn btn-green" id="btnConcluir" style="display:none;" onclick="fecharVenda()">CONCLUIR VENDA (DESCONTAR ESTOQUE)</button>
+</div>
 
-    <div class="card">
-        <h3>📦 Cadastro de Produto</h3>
-        <input type="text" id="cad-ean" placeholder="Código de Barras">
-        <input type="text" id="cad-nome" placeholder="Nome do Produto">
-        <input type="number" id="cad-qtd" placeholder="Quantidade em Estoque">
-        <input type="number" id="cad-preco" placeholder="Preço de Venda R$">
-        <label style="font-size: 12px; color: #888;">Data de Vencimento:</label>
-        <input type="date" id="cad-venc">
-        <button class="btn btn-blue" onclick="cadastrarProduto()">SALVAR NO SISTEMA</button>
-    </div>
+<div class="card">
+    <h3>📦 Novo Cadastro / Reposição</h3>
+    <input type="text" id="ean" placeholder="Cód. Barras (Escaneie)">
+    <input type="text" id="nome" placeholder="Nome do Produto">
+    <input type="number" id="qtd" placeholder="Quantidade">
+    <input type="number" id="preco" placeholder="Preço R$">
+    <label style="font-size:12px;">Vencimento:</label>
+    <input type="date" id="venc">
+    <button class="btn btn-blue" onclick="salvarProduto()">SALVAR NO ESTOQUE</button>
+</div>
 
-    <div class="card">
-        <h3>📊 Vendas por Dia</h3>
-        <div id="historicoVendas"></div>
-    </div>
+<div class="card">
+    <h3>📊 Histórico de Hoje</h3>
+    <div id="historicoDia"></div>
+</div>
 
-    <div class="card">
-        <h3>📋 Lista de Estoque</h3>
-        <div id="listaEstoque" style="overflow-x:auto;"></div>
-    </div>
+<div class="card">
+    <h3>📋 Estoque Atual</h3>
+    <div id="estoqueTabela"></div>
 </div>
 
 <script>
-    let estoque = JSON.parse(localStorage.getItem('adega_v6_estoque')) || [];
-    let vendasGerais = JSON.parse(localStorage.getItem('adega_v6_vendas')) || [];
+    let db_estoque = JSON.parse(localStorage.getItem('adega_v7_est')) || [];
+    let db_vendas = JSON.parse(localStorage.getItem('adega_v7_ven')) || [];
     let carrinho = [];
-    const WHATSAPP_NUMERO = "5531997371625";
+    const WHATS = "5531997371625";
 
-    function abrirScanner() {
-        const div = document.getElementById('interactive');
-        div.style.display = 'block';
-        Quagga.init({
-            inputStream: { name: "Live", type: "LiveStream", target: div, constraints: { facingMode: "environment" } },
-            decoder: { readers: ["ean_reader"] }
-        }, err => { if(!err) Quagga.start(); });
+    // SOM DE CONFIRMAÇÃO
+    function tocarBip() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = 880; gain.gain.value = 0.1;
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
-    Quagga.onDetected(data => {
-        const cod = data.codeResult.code;
-        const item = estoque.find(i => i.ean === cod);
-        if(item) {
-            Quagga.stop(); document.getElementById('interactive').style.display = 'none';
-            const existente = carrinho.find(c => c.ean === cod);
-            if(existente) existente.qtdVenda++; else carrinho.push({...item, qtdVenda: 1});
+    // CAMERA E SCANNER
+    function ligarCamera() {
+        document.getElementById('interactive').style.display = 'block';
+        Quagga.init({
+            inputStream: { 
+                name: "Live", type: "LiveStream", target: "#interactive",
+                constraints: { facingMode: "environment", focusMode: "continuous" }
+            },
+            decoder: { readers: ["ean_reader", "ean_8_reader"] },
+            locate: true
+        }, (err) => {
+            if (err) return alert("Erro na câmera");
+            Quagga.start();
+        });
+    }
+
+    Quagga.onDetected(res => {
+        const code = res.codeResult.code;
+        const p = db_estoque.find(i => i.ean === code);
+        tocarBip();
+        
+        if(p) {
+            const noCarrinho = carrinho.find(c => c.ean === code);
+            if(noCarrinho) noCarrinho.qtdVenda++; else carrinho.push({...p, qtdVenda: 1});
             renderCarrinho();
         } else {
-            document.getElementById('cad-ean').value = cod;
+            document.getElementById('ean').value = code;
+            alert("Produto não cadastrado! Preencha os dados abaixo.");
+            Quagga.stop();
+            document.getElementById('interactive').style.display = 'none';
         }
     });
 
     function renderCarrinho() {
-        const container = document.getElementById('listaCarrinho');
-        const btnF = document.getElementById('btnFinalizar');
-        container.innerHTML = ''; let total = 0;
-        if(carrinho.length > 0) {
-            btnF.style.display = 'block';
-            carrinho.forEach((item, index) => {
-                total += (item.preco * item.qtdVenda);
-                container.innerHTML += `
-                    <div class="carrinho-item">
-                        <span><strong>${item.nome}</strong></span>
-                        <div class="qtd-controles">
-                            <button onclick="alterarQtd(${index}, -1)">-</button>
-                            <span style="padding:0 10px">${item.qtdVenda}</span>
-                            <button onclick="alterarQtd(${index}, 1)">+</button>
-                        </div>
-                        <span>R$ ${(item.preco * item.qtdVenda).toFixed(2)}</span>
-                    </div>`;
-            });
-        } else { btnF.style.display = 'none'; }
-        document.getElementById('totalCarrinho').innerText = `R$ ${total.toFixed(2)}`;
+        const lista = document.getElementById('carrinhoLista');
+        const btn = document.getElementById('btnConcluir');
+        lista.innerHTML = ''; let total = 0;
+        
+        carrinho.forEach((item, idx) => {
+            total += (item.preco * item.qtdVenda);
+            lista.innerHTML += `
+                <div class="item-carrinho">
+                    <span>${item.nome} (x${item.qtdVenda})</span>
+                    <span>R$ ${(item.preco * item.qtdVenda).toFixed(2)} 
+                    <button onclick="removerDoCarrinho(${idx})" style="color:red; background:none; border:none; margin-left:10px;">X</button></span>
+                </div>`;
+        });
+        document.getElementById('valorTotal').innerText = `R$ ${total.toFixed(2)}`;
+        btn.style.display = carrinho.length > 0 ? 'block' : 'none';
     }
 
-    function alterarQtd(index, v) {
-        carrinho[index].qtdVenda += v;
-        if(carrinho[index].qtdVenda <= 0) carrinho.splice(index, 1);
-        renderCarrinho();
-    }
+    function removerDoCarrinho(idx) { carrinho.splice(idx, 1); renderCarrinho(); }
 
-    function concluirVenda() {
+    // DESCONTAR ESTOQUE E FINALIZAR
+    function fecharVenda() {
+        let alertas = [];
         const hoje = new Date();
-        const dataExtenso = hoje.toLocaleDateString('pt-br', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        let totalVenda = 0;
-        let mensagensAlerta = [];
+        const dataExtenso = hoje.toLocaleDateString('pt-br', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        let totalFinal = 0;
 
         carrinho.forEach(itemC => {
-            const itemE = estoque.find(i => i.ean === itemC.ean);
+            const itemE = db_estoque.find(i => i.ean === itemC.ean);
             if(itemE) {
                 itemE.qtd -= itemC.qtdVenda;
-                totalVenda += (itemC.preco * itemC.qtdVenda);
-                
-                if(itemE.qtd <= 5) {
-                    mensagensAlerta.push(`❌ ESTOQUE BAIXO: *${itemE.nome}* tem apenas ${itemE.qtd} unidades restantes!`);
-                }
+                totalFinal += (itemC.preco * itemC.qtdVenda);
+                if(itemE.qtd <= 5) alertas.push(`🚨 *${itemE.nome}* ACABANDO! Restam ${itemE.qtd} unidades.`);
             }
         });
 
-        vendasGerais.push({ data: dataExtenso, total: totalVenda });
+        db_vendas.push({ data: dataExtenso, valor: totalFinal });
         carrinho = [];
         salvar();
-        alert("Venda Finalizada!");
+        alert("Venda registrada!");
 
-        if(mensagensAlerta.length > 0) {
-            const msg = window.encodeURIComponent(mensagensAlerta.join("\n"));
-            window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${msg}`);
+        if(alertas.length > 0) {
+            window.open(`https://wa.me/${WHATS}?text=${window.encodeURIComponent(alertas.join("\n"))}`);
         }
     }
 
-    function cadastrarProduto() {
-        const p = {
-            id: Date.now(),
-            ean: document.getElementById('cad-ean').value,
-            nome: document.getElementById('cad-nome').value,
-            qtd: parseInt(document.getElementById('cad-qtd').value),
-            preco: parseFloat(document.getElementById('cad-preco').value),
-            venc: document.getElementById('cad-venc').value
-        };
-        estoque.push(p);
-        salvar();
-        alert("Produto Registrado!");
-        limpar();
+    // REPOSIÇÃO DE ESTOQUE
+    function reporEstoque(ean) {
+        const qtdNova = prompt("Quantos itens você está adicionando ao estoque?");
+        if(qtdNova) {
+            const p = db_estoque.find(i => i.ean === ean);
+            p.qtd += parseInt(qtdNova);
+            salvar();
+        }
     }
 
-    // Função para Adicionar ao Calendário do Celular
-    function addAoCalendario(nome, dataVenc) {
-        if(!dataVenc) return alert("Sem data de vencimento!");
-        const data = dataVenc.replace(/-/g, '');
-        const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${encodeURIComponent(nome)}&dates=${data}/${data}&details=Produto+vencendo+no+estoque&sf=true&output=xml`;
-        window.open(url, '_blank');
+    function salvarProduto() {
+        const ean = document.getElementById('ean').value;
+        const nome = document.getElementById('nome').value;
+        const qtd = parseInt(document.getElementById('qtd').value);
+        const preco = parseFloat(document.getElementById('preco').value);
+        const venc = document.getElementById('venc').value;
+
+        if(!ean || !nome) return alert("Preencha EAN e Nome!");
+        
+        db_estoque.push({ ean, nome, qtd, preco, venc });
+        salvar();
+        alert("Produto salvo!");
+        document.querySelectorAll('input').forEach(i => i.value = '');
     }
 
     function salvar() {
-        localStorage.setItem('adega_v6_estoque', JSON.stringify(estoque));
-        localStorage.setItem('adega_v6_vendas', JSON.stringify(vendasGerais));
-        renderEstoque(); renderHistorico(); renderCarrinho();
+        localStorage.setItem('adega_v7_est', JSON.stringify(db_estoque));
+        localStorage.setItem('adega_v7_ven', JSON.stringify(db_vendas));
+        renderEstoque();
+        renderHistorico();
+        renderCarrinho();
     }
 
     function renderEstoque() {
-        const div = document.getElementById('listaEstoque');
-        let html = '<table><tr><th>Item</th><th>Qtd</th><th>Venc.</th><th>Agenda</th></tr>';
-        estoque.forEach(i => {
-            const classeQtd = i.qtd <= 5 ? 'aviso-estoque' : '';
-            html += `<tr>
-                <td>${i.nome}</td>
-                <td class="${classeQtd}">${i.qtd}</td>
-                <td>${i.venc ? i.venc.split('-').reverse().join('/') : '--'}</td>
-                <td><button class="btn-cal" onclick="addAoCalendario('${i.nome}', '${i.venc}')">📅</button></td>
+        const div = document.getElementById('estoqueTabela');
+        let h = '<table><tr><th>Item</th><th>Qtd</th><th>Ação</th></tr>';
+        db_estoque.forEach(i => {
+            h += `<tr>
+                <td>${i.nome}<br><small>${i.venc || 'S/ Data'}</small></td>
+                <td class="${i.qtd <= 5 ? 'alerta' : ''}">${i.qtd}</td>
+                <td><button class="btn-repor" onclick="reporEstoque('${i.ean}')">REPOR</button></td>
             </tr>`;
         });
-        div.innerHTML = html + '</table>';
+        div.innerHTML = h + '</table>';
     }
 
     function renderHistorico() {
-        const div = document.getElementById('historicoVendas');
+        const div = document.getElementById('historicoDia');
         div.innerHTML = '';
-        const agrupado = vendasGerais.reduce((acc, v) => {
-            acc[v.data] = (acc[v.data] || 0) + v.total;
+        const agrupar = db_vendas.reduce((acc, v) => {
+            acc[v.data] = (acc[v.data] || 0) + v.valor;
             return acc;
         }, {});
-        for(let data in agrupado) {
-            div.innerHTML += `<div class="historico-dia">
-                <span class="data-extenso">${data}</span>
-                <span style="color:var(--success)">Total: R$ ${agrupado[data].toFixed(2)}</span>
-            </div>`;
+        for(let data in agrupar) {
+            div.innerHTML += `<p><strong>${data}</strong><br><span style="color:var(--success)">Faturado: R$ ${agrupar[data].toFixed(2)}</span></p>`;
         }
     }
 
-    function limpar() { document.querySelectorAll('input').forEach(i => i.value = ''); }
-
-    renderEstoque(); renderHistorico();
+    renderEstoque();
+    renderHistorico();
 </script>
 </body>
 </html>
