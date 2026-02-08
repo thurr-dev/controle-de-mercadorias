@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Adega Pro - Gestão Total</title>
+    <title>Adega Pro - Proteção de Dados</title>
     
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -14,25 +14,20 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .card { background: var(--card); border: 1px solid #333; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
         #reader { width: 100%; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 10px; border: 2px solid var(--primary) !important; }
-        
         .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; font-size: 14px; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase; }
         .btn-blue { background: var(--primary); }
         .btn-green { background: var(--success); }
         .btn-pdf { background: #8e44ad; }
         .btn-excel { background: #27ae60; }
-        
         .btn-acao { padding: 8px; font-size: 12px; width: auto; margin: 0 2px; border-radius: 4px; border: none; color: white; cursor: pointer; }
         .btn-edit { background: #f39c12; }
         .btn-del { background: #e74c3c; }
         .btn-cal { background: #e67e22; }
-
         input { width: 100%; padding: 14px; background: #252525; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
         .total-venda { font-size: 1.8em; text-align: right; color: var(--success); margin: 15px 0; font-weight: bold; }
-        
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #222; }
         .alerta-estoque { color: #f1c40f; font-weight: bold; }
-        .flex-btns { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -48,7 +43,7 @@
 
 <div class="card">
     <h3>📂 Exportar Vendas (Backup)</h3>
-    <div class="flex-btns">
+    <div style="display: flex; gap: 10px;">
         <button class="btn btn-pdf" onclick="gerarPDF()">📄 PDF</button>
         <button class="btn btn-excel" onclick="gerarExcel()">📊 EXCEL</button>
     </div>
@@ -71,13 +66,46 @@
 </div>
 
 <script>
-    let estoque = JSON.parse(localStorage.getItem('adega_v14_est')) || [];
-    let vendas = JSON.parse(localStorage.getItem('adega_v14_ven')) || [];
+    // CHAVE ÚNICA PARA SEMPRE USAR A MESMA PARTIR DE AGORA
+    const KEY_ESTOQUE = 'adega_master_estoque';
+    const KEY_VENDAS = 'adega_master_vendas';
+
+    // FUNÇÃO DE MIGRAÇÃO: Busca dados de todas as versões anteriores e unifica
+    function migrarDados() {
+        let estoqueMigrado = JSON.parse(localStorage.getItem(KEY_ESTOQUE)) || [];
+        let vendasMigradas = JSON.parse(localStorage.getItem(KEY_VENDAS)) || [];
+
+        // Lista de versões passadas para procurar dados perdidos
+        const versoes = ['adega_v7','adega_v8','adega_v9','adega_v10','adega_v11','adega_v12','adega_v13','adega_v14'];
+        
+        versoes.forEach(v => {
+            let estAntigo = JSON.parse(localStorage.getItem(v + '_est'));
+            let venAntigo = JSON.parse(localStorage.getItem(v + '_ven'));
+            
+            if(estAntigo && estAntigo.length > 0) {
+                estAntigo.forEach(p => {
+                    if(!estoqueMigrado.find(x => x.ean === p.ean)) estoqueMigrado.push(p);
+                });
+                localStorage.removeItem(v + '_est'); // Limpa para não duplicar na próxima vez
+            }
+            if(venAntigo && venAntigo.length > 0) {
+                vendasMigradas = [...vendasMigradas, ...venAntigo];
+                localStorage.removeItem(v + '_ven');
+            }
+        });
+
+        localStorage.setItem(KEY_ESTOQUE, JSON.stringify(estoqueMigrado));
+        localStorage.setItem(KEY_VENDAS, JSON.stringify(vendasMigradas));
+        return { estoqueMigrado, vendasMigradas };
+    }
+
+    const dadosIniciais = migrarDados();
+    let estoque = dadosIniciais.estoqueMigrado;
+    let vendas = dadosIniciais.vendasMigradas;
     let carrinho = [];
     let html5QrCode;
     const NUMERO_ZAP = "5531997371625";
 
-    // Máscara para digitar data com barras automáticas
     function mascaraData(i) {
         let v = i.value.replace(/\D/g, '');
         if (v.length > 2) v = v.substring(0,2) + '/' + v.substring(2);
@@ -117,7 +145,7 @@
             }
         } else {
             document.getElementById('cad-ean').value = codigo;
-            alert("Novo produto! Digite o nome e a validade.");
+            alert("Novo produto! Complete o cadastro.");
         }
     }
 
@@ -152,24 +180,23 @@
         vendas.push({ data: dataH, valor: totalV, timestamp: new Date().toISOString() });
         carrinho = [];
         salvar();
-        alert("Venda registrada!");
+        alert("Venda realizada!");
         if(alertas.length > 0) window.open(`https://wa.me/${NUMERO_ZAP}?text=${window.encodeURIComponent(alertas.join("\n"))}`);
     }
 
-    // --- EXPORTAÇÃO PDF ---
     function gerarPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.text("RELATORIO DE VENDAS - ADEGA", 20, 20);
         let y = 35;
         vendas.forEach(v => {
+            if(y > 280) { doc.addPage(); y = 20; }
             doc.text(`${v.data}: R$ ${v.valor.toFixed(2)}`, 20, y);
             y += 10;
         });
-        doc.save("vendas.pdf");
+        doc.save("vendas_adega.pdf");
     }
 
-    // --- EXPORTAÇÃO EXCEL ---
     function gerarExcel() {
         const ws = XLSX.utils.json_to_sheet(vendas);
         const wb = XLSX.utils.book_new();
@@ -203,8 +230,8 @@
     }
 
     function salvar() {
-        localStorage.setItem('adega_v14_est', JSON.stringify(estoque));
-        localStorage.setItem('adega_v14_ven', JSON.stringify(vendas));
+        localStorage.setItem(KEY_ESTOQUE, JSON.stringify(estoque));
+        localStorage.setItem(KEY_VENDAS, JSON.stringify(vendas));
         renderEstoque();
         renderCarrinho();
     }
@@ -220,7 +247,6 @@
                     <div style="display:flex; gap:3px;">
                         <button class="btn-acao btn-edit" onclick="editarProduto('${i.ean}')">✏️</button>
                         <button class="btn-acao btn-del" onclick="estoque=estoque.filter(x=>x.ean!=='${i.ean}');salvar();">🗑️</button>
-                        <button class="btn-acao btn-cal" onclick="window.open('https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${encodeURIComponent(i.nome)}&dates='+('${i.venc}'.split('/').reverse().join(''))+'/'+('${i.venc}'.split('/').reverse().join(''))+'&sf=true&output=xml')">📅</button>
                     </div>
                 </td>
             </tr>`;
