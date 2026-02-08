@@ -3,8 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Adega Pro - Proteção de Dados</title>
+    <title>Adega Pro - Painel de Controle</title>
     
+    <meta name="theme-color" content="#0d0d0d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mini Adega">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/thurr-dev/controle-de-mercadorias/main/icone2.png">
+    <link rel="manifest" id="pwa-manifest">
+
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -22,7 +29,6 @@
         .btn-acao { padding: 8px; font-size: 12px; width: auto; margin: 0 2px; border-radius: 4px; border: none; color: white; cursor: pointer; }
         .btn-edit { background: #f39c12; }
         .btn-del { background: #e74c3c; }
-        .btn-cal { background: #e67e22; }
         input { width: 100%; padding: 14px; background: #252525; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
         .total-venda { font-size: 1.8em; text-align: right; color: var(--success); margin: 15px 0; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -66,34 +72,53 @@
 </div>
 
 <script>
-    // CHAVE ÚNICA PARA SEMPRE USAR A MESMA PARTIR DE AGORA
+    /* --- CONFIGURAÇÃO PWA AUTOMÁTICA --- */
+    const appName = "Mini Adega";
+    const appIcon = "https://raw.githubusercontent.com/thurr-dev/controle-de-mercadorias/main/icone2.png";
+
+    const manifest = {
+        "name": "PAINEL DE CONTROLE DA MINI ADEGA",
+        "short_name": "Mini Adega",
+        "start_url": ".",
+        "display": "standalone",
+        "background_color": "#0d0d0d",
+        "theme_color": "#3498db",
+        "icons": [
+            { "src": appIcon, "sizes": "192x192", "type": "image/png" },
+            { "src": appIcon, "sizes": "512x512", "type": "image/png" }
+        ]
+    };
+
+    const manifestStr = JSON.stringify(manifest);
+    const blob = new Blob([manifestStr], {type: 'application/json'});
+    document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(blob));
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
+            self.addEventListener('fetch', function(event) {});
+        `));
+    }
+
+    /* --- LÓGICA DO SISTEMA --- */
     const KEY_ESTOQUE = 'adega_master_estoque';
     const KEY_VENDAS = 'adega_master_vendas';
 
-    // FUNÇÃO DE MIGRAÇÃO: Busca dados de todas as versões anteriores e unifica
     function migrarDados() {
         let estoqueMigrado = JSON.parse(localStorage.getItem(KEY_ESTOQUE)) || [];
         let vendasMigradas = JSON.parse(localStorage.getItem(KEY_VENDAS)) || [];
-
-        // Lista de versões passadas para procurar dados perdidos
         const versoes = ['adega_v7','adega_v8','adega_v9','adega_v10','adega_v11','adega_v12','adega_v13','adega_v14'];
-        
         versoes.forEach(v => {
             let estAntigo = JSON.parse(localStorage.getItem(v + '_est'));
             let venAntigo = JSON.parse(localStorage.getItem(v + '_ven'));
-            
-            if(estAntigo && estAntigo.length > 0) {
-                estAntigo.forEach(p => {
-                    if(!estoqueMigrado.find(x => x.ean === p.ean)) estoqueMigrado.push(p);
-                });
-                localStorage.removeItem(v + '_est'); // Limpa para não duplicar na próxima vez
+            if(estAntigo) {
+                estAntigo.forEach(p => { if(!estoqueMigrado.find(x => x.ean === p.ean)) estoqueMigrado.push(p); });
+                localStorage.removeItem(v + '_est');
             }
-            if(venAntigo && venAntigo.length > 0) {
+            if(venAntigo) {
                 vendasMigradas = [...vendasMigradas, ...venAntigo];
                 localStorage.removeItem(v + '_ven');
             }
         });
-
         localStorage.setItem(KEY_ESTOQUE, JSON.stringify(estoqueMigrado));
         localStorage.setItem(KEY_VENDAS, JSON.stringify(vendasMigradas));
         return { estoqueMigrado, vendasMigradas };
@@ -167,7 +192,6 @@
         let alertas = [];
         const dataH = new Date().toLocaleDateString('pt-br', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         let totalV = 0;
-
         carrinho.forEach(c => {
             const e = estoque.find(i => i.ean === c.ean);
             if(e) {
@@ -176,7 +200,6 @@
                 if(e.qtd <= 5) alertas.push(`🚨 *${e.nome}* ACABANDO! Restam ${e.qtd}.`);
             }
         });
-
         vendas.push({ data: dataH, valor: totalV, timestamp: new Date().toISOString() });
         carrinho = [];
         salvar();
@@ -258,4 +281,3 @@
 </script>
 </body>
 </html>
-
