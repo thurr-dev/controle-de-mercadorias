@@ -2,34 +2,13 @@ const KEY_ESTOQUE = 'adega_master_estoque';
 const KEY_VENDAS = 'adega_master_vendas';
 const NUMERO_ZAP = "5511988207302";
 
-function migrarDados() {
-    let estoqueMigrado = JSON.parse(localStorage.getItem(KEY_ESTOQUE)) || [];
-    let vendasMigradas = JSON.parse(localStorage.getItem(KEY_VENDAS)) || [];
-    const versoes = ['adega_v7','adega_v8','adega_v9','adega_v10','adega_v11','adega_v12','adega_v13','adega_v14'];
-    versoes.forEach(v => {
-        let estAntigo = JSON.parse(localStorage.getItem(v + '_est'));
-        let venAntigo = JSON.parse(localStorage.getItem(v + '_ven'));
-        if(estAntigo) {
-            estAntigo.forEach(p => { if(!estoqueMigrado.find(x => x.ean === p.ean)) estoqueMigrado.push(p); });
-            localStorage.removeItem(v + '_est');
-        }
-        if(venAntigo) {
-            vendasMigradas = [...vendasMigradas, ...venAntigo];
-            localStorage.removeItem(v + '_ven');
-        }
-    });
-    localStorage.setItem(KEY_ESTOQUE, JSON.stringify(estoqueMigrado));
-    localStorage.setItem(KEY_VENDAS, JSON.stringify(vendasMigradas));
-    return { estoqueMigrado, vendasMigradas };
-}
-
-const dadosIniciais = migrarDados();
-let estoque = dadosIniciais.estoqueMigrado;
-let vendas = dadosIniciais.vendasMigradas;
+let estoque = JSON.parse(localStorage.getItem(KEY_ESTOQUE)) || [];
+let vendas = JSON.parse(localStorage.getItem(KEY_VENDAS)) || [];
 let carrinho = [];
 let html5QrCode;
 let meuGrafico = null;
 
+// Máscaras e Utilitários
 function mascaraData(i) {
     let v = i.value.replace(/\D/g, '');
     if (v.length > 2) v = v.substring(0,2) + '/' + v.substring(2);
@@ -46,6 +25,7 @@ function bip() {
     osc.start(); osc.stop(audioCtx.currentTime + 0.1);
 }
 
+// Funções de Venda e Scanner
 function iniciarLeitor() {
     document.getElementById('reader').style.display = 'block';
     html5QrCode = new Html5Qrcode("reader");
@@ -106,6 +86,7 @@ function finalizarVenda() {
     if(alertas.length > 0) window.open(`https://wa.me/${NUMERO_ZAP}?text=${window.encodeURIComponent(alertas.join("\n"))}`);
 }
 
+// Funções de Estoque e Devolução
 function registrarDevolucao(ean) {
     const p = estoque.find(i => i.ean === ean);
     if (!p) return;
@@ -124,19 +105,8 @@ function abrirCalendario(nome, dataVenc) {
     if(!dataVenc || dataVenc.length < 10) { alert("Data inválida!"); return; }
     const partes = dataVenc.split('/');
     const dataFormatada = partes[2] + partes[1] + partes[0];
-    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("VENCIMENTO: "+nome)}&dates=${dataFormatada}/${dataFormatada}&details=Validade+Adega`;
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("VENCIMENTO: "+nome)}&dates=${dataFormatada}/${dataFormatada}`;
     window.open(url, '_blank');
-}
-
-function editarProduto(ean) {
-    const p = estoque.find(i => i.ean === ean);
-    if(p) {
-        p.nome = prompt("Nome:", p.nome) || p.nome;
-        p.qtd = parseInt(prompt("Quantidade:", p.qtd)) || 0;
-        p.preco = parseFloat(prompt("Preço:", p.preco)) || 0;
-        p.venc = prompt("Vencimento (DD/MM/AAAA):", p.venc) || "";
-        salvar();
-    }
 }
 
 function salvarProduto() {
@@ -169,8 +139,8 @@ function renderEstoque() {
             <td class="${i.qtd <= 5 ? 'alerta-estoque' : ''}">${i.qtd}</td>
             <td>
                 <div style="display:flex; gap:3px;">
-                    <button class="btn-acao btn-edit" onclick="editarProduto('${i.ean}')">✏️</button>
-                    <button class="btn-acao btn-cal" style="background:#e67e22;" onclick="abrirCalendario('${i.nome}', '${i.venc}')">📅</button>
+                    <button class="btn-acao" style="background:#f39c12;" onclick="editarProduto('${i.ean}')">✏️</button>
+                    <button class="btn-acao" style="background:#e67e22;" onclick="abrirCalendario('${i.nome}', '${i.venc}')">📅</button>
                     <button class="btn-acao" style="background:#9b59b6;" onclick="registrarDevolucao('${i.ean}')">🔄</button>
                     <button class="btn-acao btn-del" onclick="if(confirm('Eliminar?')){estoque=estoque.filter(x=>x.ean!=='${i.ean}');salvar();}">🗑️</button>
                 </div>
@@ -180,56 +150,81 @@ function renderEstoque() {
     div.innerHTML = html + '</table>';
 }
 
+// LÓGICA DO GRÁFICO (4 SEMANAS COMPARATIVAS)
 function toggleRelatorio() {
     const cont = document.getElementById('conteudoRelatorio');
     const seta = document.getElementById('seta-relatorio');
     if (cont.style.display === 'none') {
-        cont.style.display = 'block'; seta.innerText = '▲'; renderizarGrafico();
+        cont.style.display = 'block'; seta.innerText = '▲'; renderizarGraficoSemanas();
     } else {
         cont.style.display = 'none'; seta.innerText = '▼';
     }
 }
 
-function agruparVendasPorSemana() {
-    const semanas = {};
+function processarDadosGrafico() {
+    // 4 semanas, 7 dias cada (0=Dom, 1=Seg...)
+    const semanas = [[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]];
     vendas.forEach(v => {
         const d = new Date(v.timestamp);
-        d.setDate(d.getDate() - d.getDay());
-        const label = d.toLocaleDateString('pt-br', {day:'2-digit', month:'2-digit'});
-        semanas[label] = (semanas[label] || 0) + v.valor;
+        const diaMes = d.getDate();
+        const diaSemana = d.getDay();
+        let sIdx = 0;
+        if(diaMes > 7 && diaMes <= 14) sIdx = 1;
+        else if(diaMes > 14 && diaMes <= 21) sIdx = 2;
+        else if(diaMes > 21) sIdx = 3;
+        semanas[sIdx][diaSemana] += v.valor;
     });
     return semanas;
 }
 
-function renderizarGrafico() {
-    const dados = agruparVendasPorSemana();
+function renderizarGraficoSemanas() {
+    const dadosSemanas = processarDadosGrafico();
     const ctx = document.getElementById('graficoVendas').getContext('2d');
     if(meuGrafico) meuGrafico.destroy();
+    
     meuGrafico = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
-            labels: Object.keys(dados),
-            datasets: [{ label: 'R$', data: Object.values(dados), backgroundColor: '#3498db' }]
+            labels: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+            datasets: [
+                { label: 'Sem 1', data: dadosSemanas[0], borderColor: '#3498db', tension: 0.2 },
+                { label: 'Sem 2', data: dadosSemanas[1], borderColor: '#2ecc71', tension: 0.2 },
+                { label: 'Sem 3', data: dadosSemanas[2], borderColor: '#f1c40f', tension: 0.2 },
+                { label: 'Sem 4', data: dadosSemanas[3], borderColor: '#e74c3c', tension: 0.2 }
+            ]
         },
-        options: { responsive: true, plugins: { legend: { display: false } } }
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#fff' } } },
+            scales: {
+                y: { grid: { color: '#333' }, ticks: { color: '#fff' } },
+                x: { ticks: { color: '#fff' } }
+            }
+        }
     });
 }
 
 function gerarRelatorioSemanal() {
-    const dados = agruparVendasPorSemana();
-    const rel = Object.keys(dados).map(s => ({ "Semana": s, "Total R$": dados[s].toFixed(2) }));
+    const dados = processarDadosGrafico();
+    const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const rel = [];
+    dados.forEach((s, idx) => {
+        s.forEach((v, dIdx) => {
+            rel.push({ "Semana": `Semana ${idx+1}`, "Dia": dias[dIdx], "Total R$": v.toFixed(2) });
+        });
+    });
     const ws = XLSX.utils.json_to_sheet(rel);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Semanal");
-    XLSX.writeFile(wb, "vendas_semanais.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Relatorio");
+    XLSX.writeFile(wb, "vendas_diarias_semanal.xlsx");
 }
 
+// Funções de Exportação Simples
 function gerarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.text("VENDAS ADEGA", 20, 20);
-    let y = 30;
-    vendas.slice(-20).forEach(v => { doc.text(`${v.data}: R$ ${v.valor.toFixed(2)}`, 20, y); y += 10; });
+    vendas.slice(-15).forEach((v, i) => doc.text(`${v.data}: R$ ${v.valor.toFixed(2)}`, 20, 30+(i*10)));
     doc.save("vendas.pdf");
 }
 
@@ -238,6 +233,17 @@ function gerarExcel() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Vendas");
     XLSX.writeFile(wb, "vendas_completo.xlsx");
+}
+
+function editarProduto(ean) {
+    const p = estoque.find(i => i.ean === ean);
+    if(p) {
+        p.nome = prompt("Nome:", p.nome) || p.nome;
+        p.qtd = parseInt(prompt("Quantidade:", p.qtd)) || 0;
+        p.preco = parseFloat(prompt("Preço:", p.preco)) || 0;
+        p.venc = prompt("Vencimento (DD/MM/AAAA):", p.venc) || "";
+        salvar();
+    }
 }
 
 renderEstoque();
