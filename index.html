@@ -16,6 +16,7 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -50,6 +51,16 @@
 <div class="card">
     <h3>📋 Estoque & Validade</h3>
     <div id="listaEstoque" style="overflow-x:auto;"></div>
+</div>
+
+<div class="card">
+    <h3 onclick="toggleRelatorio()" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin:0;">
+        📈 Verificar relatório das semanas <span id="seta-relatorio">▼</span>
+    </h3>
+    <div id="conteudoRelatorio" style="display:none; margin-top:20px;">
+        <canvas id="graficoVendas"></canvas>
+        <button class="btn btn-excel" style="margin-top:20px; background:#2980b9;" onclick="gerarRelatorioSemanal()">📊 BAIXAR RELATÓRIO MENSAL/SEMANAL</button>
+    </div>
 </div>
 
 <script src="script.js"></script>
