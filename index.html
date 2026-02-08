@@ -3,177 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV Adega - Scanner Restaurado</title>
+    <title>PDV Profissional - Relatórios Reais</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
-        :root { --bg: #0a0a0a; --card: #161616; --text: #eee; --primary: #3498db; --success: #2ecc71; --border: #333; --warning: #f1c40f; }
+        :root { --bg: #0f0f0f; --card: #1a1a1a; --text: #eee; --primary: #3498db; --success: #2ecc71; --border: #333; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .container { max-width: 600px; margin: auto; }
-        
-        /* Ajuste do Scanner para melhor precisão */
-        #interactive.viewport { 
-            width: 100%; height: 300px; border: 2px solid var(--primary); 
-            display: none; border-radius: 15px; overflow: hidden; position: relative;
-            background: #000;
-        }
-        #interactive video { width: 100%; height: 100%; object-fit: cover; }
-        canvas.drawingBuffer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-
         .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
-        input, button { padding: 14px; background: #222; border: 1px solid var(--border); border-radius: 8px; color: white; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        
+        /* Scanner e Modal */
+        #interactive.viewport { width: 100%; height: 250px; border: 2px solid var(--primary); display: none; border-radius: 15px; overflow: hidden; position: relative; }
+        #modal-venda { display: none; background: #222; padding: 20px; border-radius: 12px; border: 2px solid var(--success); margin-top: 15px; text-align: center; }
+        
+        input, button { padding: 14px; background: #252525; border: 1px solid var(--border); border-radius: 8px; color: white; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
         .btn-blue { background: var(--primary); font-weight: bold; border: none; cursor: pointer; }
         .btn-green { background: var(--success); font-weight: bold; border: none; cursor: pointer; }
         
-        #modal-venda { display: none; background: #222; padding: 20px; border-radius: 12px; border: 2px solid var(--success); text-align: center; }
-        .btn-cal { color: var(--warning); border: 1px solid var(--warning); padding: 5px; text-decoration: none; display: inline-block; font-size: 12px; margin-top: 5px; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; color: #888; padding-bottom: 10px; }
+        td { padding: 10px 0; border-bottom: 1px solid var(--border); }
+
+        #toast { visibility: hidden; background: var(--success); color: #fff; text-align: center; border-radius: 8px; padding: 15px; position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); }
+        #toast.show { visibility: visible; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="text-align:center; color:var(--primary);">🏪 Sistema de Vendas</h2>
+    <div id="toast">✅ Produto Cadastrado!</div>
+    <h2 style="text-align:center; color:var(--primary);">🏪 Controle de Vendas</h2>
 
-    <button class="btn-blue" onclick="abrirScanner()">📷 ESCANEAR CÓDIGO</button>
+    <button class="btn-blue" onclick="abrirScanner()">📷 ESCANEAR PARA VENDER</button>
     <div id="interactive" class="viewport"></div>
 
-    <div id="modal-venda" class="card">
-        <h3 id="venda-nome" style="color:var(--success); margin:0;"></h3>
+    <div id="modal-venda">
+        <h3 id="venda-nome" style="color:var(--success); margin:0;">NOME</h3>
         <p id="venda-preco" style="color:#888;"></p>
+        <label>Quantidade:</label>
         <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:20px;">
         <button class="btn-green" onclick="confirmarBaixa()">CONFIRMAR VENDA</button>
         <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; cursor:pointer;">Cancelar</button>
     </div>
 
     <div class="card">
-        <h4>📦 Cadastro</h4>
+        <h4>📦 Cadastrar Produto</h4>
         <input type="text" id="ean" placeholder="Código de Barras">
-        <input type="text" id="nome" placeholder="Produto">
-        <input type="number" id="estoque-inicial" placeholder="Qtd">
-        <input type="number" id="preco-venda" placeholder="Preço R$">
-        <label style="font-size:12px; color:var(--primary)">VENCIMENTO:</label>
-        <input type="date" id="vencimento">
-        <button class="btn-blue" onclick="cadastrar()">CADASTRAR</button>
+        <input type="text" id="nome" placeholder="Nome do Produto">
+        <input type="number" id="estoque-inicial" placeholder="Qtd em Estoque">
+        <input type="number" id="preco-venda" placeholder="Preço de Venda R$">
+        <button class="btn-blue" onclick="cadastrar()">CADASTRAR PRODUTO</button>
     </div>
 
     <div class="card">
-        <h4>📋 Estoque Atual</h4>
-        <table style="width:100%; border-collapse: collapse;">
+        <h4>📋 Estoque & Validade</h4>
+        <table>
+            <thead><tr><th>Item</th><th>Qtd</th><th>Ações</th></tr></thead>
             <tbody id="listaProdutos"></tbody>
         </table>
     </div>
 
     <div class="card">
-        <h4>📊 Relatório</h4>
-        <button class="btn-blue" onclick="gerarRelatorioPDF()">BAIXAR RELATÓRIO PDF</button>
+        <h4>📈 Verificar relatório das semanas</h4>
+        <div style="height: 200px;"><canvas id="graficoVendas"></canvas></div>
+        <button class="btn-blue" style="margin-top:20px;" onclick="gerarRelatorioPDF()">📊 BAIXAR RELATÓRIO MENSAL/SEMANAL</button>
     </div>
 </div>
 
 <script>
-    let estoque = JSON.parse(localStorage.getItem('adega_v6')) || [];
-    let vendas = JSON.parse(localStorage.getItem('vendas_v6')) || [];
+    // Carregar dados
+    let estoque = JSON.parse(localStorage.getItem('loja_estoque')) || [];
+    let historicoVendas = JSON.parse(localStorage.getItem('loja_vendas')) || [];
     let produtoEncontrado = null;
 
-    function abrirScanner() {
-        const scannerDiv = document.getElementById('interactive');
-        scannerDiv.style.display = 'block';
-        
-        Quagga.init({
-            inputStream: {
-                name: "Live",
-                type: "LiveStream",
-                target: scannerDiv,
-                constraints: {
-                    width: { min: 640 },
-                    height: { min: 480 },
-                    facingMode: "environment",
-                    aspectRatio: { min: 1, max: 2 }
-                }
-            },
-            locator: { patchSize: "medium", halfSample: true },
-            decoder: { readers: ["ean_reader"] }, // Foco total em códigos de barra de mercado
-            locate: true
-        }, (err) => {
-            if (err) return console.error(err);
-            Quagga.start();
-        });
+    function tocarBip() {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.1);
     }
 
-    Quagga.onDetected((data) => {
-        const code = data.codeResult.code;
-        produtoEncontrado = estoque.find(i => i.ean === code);
-        
-        if (produtoEncontrado) {
-            Quagga.stop();
+    // Scanner
+    function abrirScanner() {
+        document.getElementById('interactive').style.display = 'block';
+        Quagga.init({
+            inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#interactive'), constraints: { facingMode: "environment" } },
+            decoder: { readers: ["ean_reader"] }
+        }, err => { if(!err) Quagga.start(); });
+    }
+
+    Quagga.onDetected(data => {
+        const cod = data.codeResult.code;
+        produtoEncontrado = estoque.find(i => i.ean === cod);
+        if(produtoEncontrado) {
+            tocarBip(); Quagga.stop();
             document.getElementById('interactive').style.display = 'none';
             document.getElementById('modal-venda').style.display = 'block';
             document.getElementById('venda-nome').innerText = produtoEncontrado.nome;
             document.getElementById('venda-preco').innerText = "R$ " + produtoEncontrado.preco.toFixed(2);
         } else {
-            document.getElementById('ean').value = code;
+            document.getElementById('ean').value = cod;
         }
     });
 
+    // Venda
     function confirmarBaixa() {
         const qtd = parseInt(document.getElementById('venda-qtd').value);
-        if (produtoEncontrado.qtd >= qtd) {
+        if(produtoEncontrado.qtd >= qtd) {
             produtoEncontrado.qtd -= qtd;
-            vendas.push({ data: new Date().toLocaleDateString(), item: produtoEncontrado.nome, qtd, total: produtoEncontrado.preco * qtd });
+            // REGISTRO NO HISTÓRICO PARA O RELATÓRIO
+            historicoVendas.push({
+                data: new Date().toLocaleDateString(),
+                item: produtoEncontrado.nome,
+                qtd: qtd,
+                total: produtoEncontrado.preco * qtd
+            });
             salvar();
             cancelarVenda();
-        } else { alert("Sem estoque!"); }
+            alert("Venda registrada!");
+        } else { alert("Estoque insuficiente!"); }
     }
 
+    function cancelarVenda() { 
+        document.getElementById('modal-venda').style.display = 'none'; 
+        produtoEncontrado = null; 
+    }
+
+    // Cadastro
     function cadastrar() {
         const item = {
             id: Date.now(),
             ean: document.getElementById('ean').value,
             nome: document.getElementById('nome').value,
             qtd: parseInt(document.getElementById('estoque-inicial').value) || 0,
-            preco: parseFloat(document.getElementById('preco-venda').value) || 0,
-            vencimento: document.getElementById('vencimento').value
+            preco: parseFloat(document.getElementById('preco-venda').value) || 0
         };
         estoque.push(item);
         salvar();
+        const t = document.getElementById('toast');
+        t.className = "show"; setTimeout(() => t.className = "", 3000);
         document.querySelectorAll('input').forEach(i => i.value = '');
     }
 
     function salvar() {
-        localStorage.setItem('adega_v6', JSON.stringify(estoque));
-        localStorage.setItem('vendas_v6', JSON.stringify(vendas));
+        localStorage.setItem('loja_estoque', JSON.stringify(estoque));
+        localStorage.setItem('loja_vendas', JSON.stringify(historicoVendas));
         renderizar();
+        atualizarGrafico();
     }
 
     function renderizar() {
         const corpo = document.getElementById('listaProdutos');
         corpo.innerHTML = '';
         estoque.forEach(i => {
-            const dataVenc = i.vencimento ? i.vencimento.split('-').reverse().join('/') : '---';
-            const linkCal = i.vencimento ? `<a href="https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${i.nome}&dates=${i.vencimento.replace(/-/g,'')}/${i.vencimento.replace(/-/g,'')}" target="_blank" class="btn-cal">📅 Alerta</a>` : '';
-            
-            corpo.innerHTML += `<tr style="border-bottom: 1px solid #333">
-                <td style="padding:10px"><strong>${i.nome}</strong><br><small>Venc: ${dataVenc}</small> ${linkCal}</td>
-                <td style="text-align:right">Qtd: ${i.qtd} <button onclick="remover(${i.id})" style="color:red; background:none; border:none; margin-left:10px">🗑️</button></td>
+            corpo.innerHTML += `<tr>
+                <td><strong>${i.nome}</strong><br><small>${i.ean}</small></td>
+                <td>${i.qtd}</td>
+                <td><button onclick="remover(${i.id})" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button></td>
             </tr>`;
         });
     }
 
     function remover(id) { estoque = estoque.filter(i => i.id !== id); salvar(); }
 
+    // GRÁFICO E PDF
+    let chart;
+    function atualizarGrafico() {
+        const ctx = document.getElementById('graficoVendas').getContext('2d');
+        const ultimos7Dias = Array.from({length: 7}, (_, i) => {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            return d.toLocaleDateString();
+        }).reverse();
+
+        const valores = ultimos7Dias.map(dia => {
+            return historicoVendas.filter(v => v.data === dia).reduce((acc, v) => acc + v.total, 0);
+        });
+
+        if(chart) chart.destroy();
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: ultimos7Dias, datasets: [{ label: 'Vendas R$', data: valores, backgroundColor: '#3498db' }] },
+            options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#333' } } } }
+        });
+    }
+
     function gerarRelatorioPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Relatório de Vendas", 14, 15);
-        const rows = vendas.map(v => [v.data, v.item, v.qtd, `R$ ${v.total.toFixed(2)}`]);
-        doc.autoTable({ head: [['Data', 'Item', 'Qtd', 'Total']], body: rows, startY: 25 });
-        doc.save("relatorio.pdf");
+        doc.text("Relatório de Vendas - Mini Adega", 14, 15);
+        
+        const rows = historicoVendas.map(v => [v.data, v.item, v.qtd, `R$ ${v.total.toFixed(2)}`]);
+        
+        doc.autoTable({
+            head: [['Data', 'Produto', 'Qtd', 'Total']],
+            body: rows,
+            startY: 25
+        });
+        
+        doc.save("relatorio_vendas.pdf");
     }
 
-    function cancelarVenda() { document.getElementById('modal-venda').style.display = 'none'; }
-
     renderizar();
+    atualizarGrafico();
 </script>
 </body>
 </html>
