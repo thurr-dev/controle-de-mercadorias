@@ -8,36 +8,56 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <title>PDV - Mini Adega com Recibo</title>
+    <title>Sistema PDV - Mini Adega & Mercado</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-
+    
     <style>
-        :root { --bg: #0d0d0d; --card: #1a1a1a; --text: #eee; --primary: #3498db; --success: #2ecc71; --border: #333; }
+        :root {
+            --bg: #121212; --card: #1e1e1e; --text: #e0e0e0;
+            --primary: #3498db; --venda: #2ecc71; --danger: #e74c3c;
+            --border: #333; --warning: #f1c40f;
+        }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        .container { max-width: 600px; margin: auto; }
+        .container { max-width: 900px; margin: auto; background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        #interactive.viewport { width: 100%; height: 220px; border: 2px solid var(--primary); display: none; border-radius: 15px; overflow: hidden; position: relative; background: #000; }
+        /* Scanner Ajustado */
+        #interactive.viewport { width: 100%; height: 250px; border: 2px solid var(--primary); display: none; margin-bottom: 15px; border-radius: 10px; overflow: hidden; position: relative; }
         #interactive video { width: 100%; height: 100%; object-fit: cover; }
         .laser { position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: red; box-shadow: 0 0 10px red; z-index: 10; transform: translateY(-50%); }
 
-        #modal-venda { display: none; background: #1e1e1e; padding: 20px; border-radius: 12px; border: 2px solid var(--success); margin-top: 15px; text-align: center; }
-        
-        .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
-        input, button { padding: 14px; background: #252525; border: 1px solid var(--border); border-radius: 8px; color: white; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; }
-        .btn-blue { background: var(--primary); font-weight: bold; border: none; cursor: pointer; }
-        .btn-green { background: var(--success); font-weight: bold; border: none; cursor: pointer; }
-        
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        td { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        /* Modal de Venda por Quantidade */
+        #modal-venda { 
+            display: none; background: #252525; padding: 20px; border-radius: 12px; 
+            border: 2px solid var(--venda); margin-bottom: 20px; text-align: center; 
+        }
 
-        #toast { visibility: hidden; background: var(--success); color: #fff; text-align: center; border-radius: 8px; padding: 15px; position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); }
-        #toast.show { visibility: visible; }
+        .card { background: #252525; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+        input, select, button { padding: 12px; background: #2d2d2d; border: 1px solid var(--border); border-radius: 6px; color: white; font-size: 14px; }
+        .btn-add { grid-column: 1 / -1; background: var(--primary); font-weight: bold; cursor: pointer; border: none; }
+        .btn-scan { background: #333; color: var(--primary); width: 100%; margin-bottom: 10px; cursor: pointer; border: 1px solid var(--primary); font-weight: bold; padding: 15px; border-radius: 8px; }
 
-        /* Estilo para impressão do Comprovante */
+        .painel-vendas { display: flex; justify-content: space-around; background: #1b2e23; padding: 20px; border-radius: 8px; margin-bottom: 20px; color: var(--venda); border: 1px solid #2d5a3f; }
+        .valor-venda { font-weight: 800; font-size: 1.4em; }
+
+        #busca { width: 100%; box-sizing: border-box; padding: 15px; margin-bottom: 15px; background: #252525; border: 1px solid var(--primary); color: white; border-radius: 8px; }
+        .table-res { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #2d2d2d; padding: 12px; text-align: left; color: #888; }
+        td { padding: 12px; border-bottom: 1px solid var(--border); }
+        
+        .aviso-vencido { background-color: rgba(231, 76, 60, 0.2) !important; }
+        .aviso-estoque { border-left: 4px solid var(--warning); }
+        .btn-vender-row { background: var(--venda); color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        
+        .chart-box { margin-top: 30px; height: 300px; background: #1e1e1e; padding: 10px; border-radius: 8px; }
+        .backup-area { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .btn-pdf { background: #8e44ad !important; color: white !important; font-weight: bold; }
+
         @media print {
             body * { visibility: hidden; }
             #cupom-print, #cupom-print * { visibility: visible; }
@@ -48,68 +68,103 @@
 <body>
 
 <div class="container">
-    <div id="toast">✅ Operação Concluída!</div>
-    <h2 style="text-align:center; color:var(--primary);">🏪 PDV - Mini Adega</h2>
+    <h2 style="text-align:center; color:var(--primary)">🏪 Gestão Mini Adega & Mercado</h2>
 
-    <button class="btn-blue" onclick="ligarScanner()">📷 ESCANEAR PRODUTO</button>
+    <button class="btn-scan" onclick="ligarScanner()">📷 ESCANEAR CÓDIGO (BIP ATIVO)</button>
     <div id="interactive" class="viewport"><div class="laser"></div></div>
 
     <div id="modal-venda">
-        <h3 id="venda-nome" style="color:var(--success); margin:0;">NOME</h3>
-        <p id="venda-preco" style="color:#888;"></p>
-        <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:24px;">
-        <button class="btn-green" onclick="confirmarVenda()">CONFIRMAR VENDA</button>
-        <button id="btn-imprimir" class="btn-blue" style="display:none;" onclick="imprimirCupom()">🖨️ IMPRIMIR COMPROVANTE</button>
-        <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; cursor:pointer;">Fechar/Cancelar</button>
+        <h3 id="venda-nome" style="color:var(--venda); margin:0;">NOME DO ITEM</h3>
+        <p id="venda-info" style="color:#888; margin: 10px 0;"></p>
+        <div style="margin-bottom: 15px;">
+            <label style="display:block; font-size:12px; color:var(--primary); margin-bottom:5px;">QUANTIDADE:</label>
+            <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:24px; width:120px; background:#121212;">
+        </div>
+        <button class="btn-add" style="background:var(--venda); margin-bottom:5px;" onclick="confirmarVenda()">CONFIRMAR BAIXA</button>
+        <button id="btn-cupom" style="background:#8e44ad; display:none; width:100%; border:none; padding:12px; border-radius:6px; color:white; font-weight:bold; cursor:pointer; margin-bottom:5px;" onclick="imprimirCupom()">🖨️ IMPRIMIR COMPROVANTE</button>
+        <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; cursor:pointer; margin-top:10px;">Cancelar / Fechar</button>
     </div>
 
     <div class="card">
-        <h4>📦 Cadastro de Produto</h4>
-        <input type="text" id="ean" placeholder="Código de Barras">
-        <input type="text" id="nome" placeholder="Nome do Produto">
-        <input type="number" id="estoque-inicial" placeholder="Qtd Estoque">
-        <input type="number" id="preco-venda" placeholder="Preço R$">
-        <button class="btn-blue" onclick="cadastrar()">CADASTRAR PRODUTO</button>
+        <div class="form-grid">
+            <input type="text" id="ean" placeholder="Cód. Barras">
+            <input type="text" id="nome" placeholder="Produto">
+            <select id="categoria">
+                <option value="Bebidas">Bebidas</option>
+                <option value="Mercearia">Mercearia</option>
+                <option value="Frios/Laticínios">Frios/Laticínios</option>
+                <option value="Limpeza">Limpeza</option>
+                <option value="Higiene">Higiene</option>
+                <option value="Outros">Outros</option>
+            </select>
+            <input type="number" id="qtd" placeholder="Estoque">
+            <input type="date" id="venc" title="Vencimento">
+            <input type="number" id="preco" placeholder="Preço R$">
+            <button class="btn-add" onclick="adicionar()">CADASTRAR PRODUTO</button>
+        </div>
     </div>
 
-    <div class="card">
-        <h4>📋 Estoque</h4>
-        <table><tbody id="listaProdutos"></tbody></table>
+    <div class="painel-vendas">
+        <div>HOJE: <span class="valor-venda" id="vendaTotal">R$ 0,00</span></div>
+        <div>VENDAS: <span class="valor-venda" id="vendaQtd">0</span></div>
     </div>
 
-    <div class="card">
-        <h4>📈 Relatório Semanal</h4>
-        <div style="height: 180px;"><canvas id="graficoVendas"></canvas></div>
-        <button class="btn-blue" style="margin-top:20px;" onclick="gerarRelatorioPDF()">📄 BAIXAR RELATÓRIO MENSAL</button>
+    <input type="text" id="busca" placeholder="🔍 Buscar nome ou código de barras..." onkeyup="renderizar()">
+
+    <div class="table-res">
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qtd</th>
+                    <th>Venc.</th>
+                    <th>Preço</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
+    </div>
+
+    <div class="chart-box">
+        <canvas id="graficoVendas"></canvas>
+    </div>
+
+    <div class="backup-area">
+        <button onclick="exportar()">📥 Backup JSON</button>
+        <button onclick="document.getElementById('importFile').click()">📤 Importar</button>
+        <button class="btn-pdf" onclick="gerarPDF()">📄 Relatório PDF Mensal</button>
+        <input type="file" id="importFile" style="display:none" onchange="importar(event)">
     </div>
 </div>
 
 <div id="cupom-print" style="display:none;"></div>
 
 <script>
-    let estoque = JSON.parse(localStorage.getItem('adega_v6_estoque')) || [];
-    let vendas = JSON.parse(localStorage.getItem('adega_v6_vendas')) || [];
+    let estoque = JSON.parse(localStorage.getItem('mercadoprev_estoque')) || [];
+    let vendas = JSON.parse(localStorage.getItem('mercadoprev_vendas')) || [];
     let itemAtual = null;
-    let ultimaVendaCupom = null;
+    let dadosUltimoCupom = null;
 
-    function somBip() {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.frequency.value = 880; gain.gain.value = 0.1;
-        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    function tocarBip() {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+        osc.frequency.setValueAtTime(880, context.currentTime);
+        gain.gain.setValueAtTime(0.1, context.currentTime);
+        osc.connect(gain); gain.connect(context.destination);
+        osc.start(); osc.stop(context.currentTime + 0.1);
     }
 
     function ligarScanner() {
-        somBip();
-        document.getElementById('interactive').style.display = 'block';
+        tocarBip();
+        const div = document.getElementById('interactive');
+        div.style.display = 'block';
         document.getElementById('modal-venda').style.display = 'none';
-        document.getElementById('btn-imprimir').style.display = 'none';
-
+        
         Quagga.init({
-            inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#interactive'), constraints: { facingMode: "environment" } },
-            decoder: { readers: ["ean_reader", "upc_reader", "code_128_reader"] }, // Versão mais ampla para precisão
+            inputStream: { name: "Live", type: "LiveStream", target: div, constraints: { facingMode: "environment" } },
+            decoder: { readers: ["ean_reader", "upc_reader", "code_128_reader"] },
             locate: true
         }, err => { if(!err) Quagga.start(); });
     }
@@ -117,100 +172,204 @@
     Quagga.onDetected(data => {
         const cod = data.codeResult.code;
         itemAtual = estoque.find(i => i.ean === cod);
+        tocarBip();
+        Quagga.stop();
+        document.getElementById('interactive').style.display = 'none';
+
         if(itemAtual) {
-            somBip(); Quagga.stop();
-            document.getElementById('interactive').style.display = 'none';
             document.getElementById('modal-venda').style.display = 'block';
             document.getElementById('venda-nome').innerText = itemAtual.nome;
-            document.getElementById('venda-preco').innerText = "R$ " + itemAtual.preco.toFixed(2);
+            document.getElementById('venda-info').innerText = `Preço: R$ ${itemAtual.preco.toFixed(2)} | Estoque: ${itemAtual.qtd}`;
             document.getElementById('venda-qtd').value = 1;
+            document.getElementById('btn-cupom').style.display = 'none';
         } else {
             document.getElementById('ean').value = cod;
+            alert("Produto não cadastrado. O código foi inserido no campo de cadastro.");
         }
     });
 
     function confirmarVenda() {
-        const qtd = parseInt(document.getElementById('venda-qtd').value);
-        if(itemAtual.qtd >= qtd) {
-            itemAtual.qtd -= qtd;
-            ultimaVendaCupom = {
+        const qtdVenda = parseInt(document.getElementById('venda-qtd').value);
+        if(itemAtual && itemAtual.qtd >= qtdVenda) {
+            itemAtual.qtd -= qtdVenda;
+            const valorTotal = itemAtual.preco * qtdVenda;
+            
+            dadosUltimoCupom = {
                 data: new Date().toLocaleString(),
-                item: itemAtual.nome,
-                qtd: qtd,
+                nome: itemAtual.nome,
+                qtd: qtdVenda,
                 preco: itemAtual.preco,
-                total: itemAtual.preco * qtd
+                total: valorTotal
             };
-            vendas.push({ data: new Date().toLocaleDateString(), item: itemAtual.nome, qtd: qtd, total: itemAtual.preco * qtd });
-            salvarTudo();
-            document.getElementById('btn-imprimir').style.display = 'block';
-            mostrarSucesso("Venda confirmada!");
-        } else { alert("Estoque baixo!"); }
+
+            vendas.push({ 
+                data: new Date().toLocaleDateString(), 
+                valor: valorTotal, 
+                nome: itemAtual.nome,
+                qtd: qtdVenda 
+            });
+            
+            salvar();
+            document.getElementById('btn-cupom').style.display = 'block';
+            alert("Venda realizada com sucesso!");
+        } else {
+            alert("Estoque insuficiente!");
+        }
     }
 
     function imprimirCupom() {
-        if(!ultimaVendaCupom) return;
-        const cupom = `
-            <div style="text-align:center; font-family:monospace;">
-                <h3>MINI ADEGA</h3>
-                <p>--------------------------</p>
+        if(!dadosUltimoCupom) return;
+        const cupomHtml = `
+            <div style="text-align:center; font-family:monospace; width:100%;">
+                <h2>MINI ADEGA & MERCADO</h2>
+                <p>--------------------------------</p>
                 <p>COMPROVANTE DE VENDA</p>
-                <p>${ultimaVendaCupom.data}</p>
-                <p>--------------------------</p>
+                <p>${dadosUltimoCupom.data}</p>
+                <p>--------------------------------</p>
                 <div style="text-align:left;">
-                    <p>ITEM: ${ultimaVendaCupom.item}</p>
-                    <p>QTD: ${ultimaVendaCupom.qtd} x R$ ${ultimaVendaCupom.preco.toFixed(2)}</p>
-                    <p><strong>TOTAL: R$ ${ultimaVendaCupom.total.toFixed(2)}</strong></p>
+                    <p>PRODUTO: ${dadosUltimoCupom.nome}</p>
+                    <p>QTD: ${dadosUltimoCupom.qtd} x R$ ${dadosUltimoCupom.preco.toFixed(2)}</p>
+                    <p><strong>TOTAL: R$ ${dadosUltimoCupom.total.toFixed(2)}</strong></p>
                 </div>
-                <p>--------------------------</p>
+                <p>--------------------------------</p>
                 <p>Obrigado pela preferência!</p>
             </div>
         `;
-        const areaPrint = document.getElementById('cupom-print');
-        areaPrint.innerHTML = cupom;
+        const area = document.getElementById('cupom-print');
+        area.innerHTML = cupomHtml;
         window.print();
     }
 
-    function cancelarVenda() { document.getElementById('modal-venda').style.display = 'none'; itemAtual = null; }
-
-    function cadastrar() {
-        const item = { id: Date.now(), ean: document.getElementById('ean').value, nome: document.getElementById('nome').value, qtd: parseInt(document.getElementById('estoque-inicial').value) || 0, preco: parseFloat(document.getElementById('preco-venda').value) || 0 };
-        if(!item.nome || !item.ean) return alert("Preencha tudo!");
-        estoque.push(item);
-        salvarTudo();
-        mostrarSucesso("Cadastrado!");
-        document.querySelectorAll('input').forEach(i => i.value = '');
+    function cancelarVenda() {
+        document.getElementById('modal-venda').style.display = 'none';
+        itemAtual = null;
     }
 
-    function mostrarSucesso(msg) { const t = document.getElementById('toast'); t.innerText = "✅ " + msg; t.className = "show"; setTimeout(() => t.className = "", 3000); }
-    function salvarTudo() { localStorage.setItem('adega_v6_estoque', JSON.stringify(estoque)); localStorage.setItem('adega_v6_vendas', JSON.stringify(vendas)); renderizar(); atualizarGrafico(); }
-    
+    function adicionar() {
+        const item = {
+            id: Date.now(),
+            ean: document.getElementById('ean').value,
+            nome: document.getElementById('nome').value,
+            cat: document.getElementById('categoria').value,
+            qtd: parseInt(document.getElementById('qtd').value) || 0,
+            venc: document.getElementById('venc').value,
+            preco: parseFloat(document.getElementById('preco').value) || 0
+        };
+        if(!item.nome) return alert("Nome obrigatório!");
+        estoque.push(item);
+        salvar();
+        limpar();
+    }
+
+    function venderDireto(id) {
+        itemAtual = estoque.find(i => i.id === id);
+        if(itemAtual) {
+            document.getElementById('modal-venda').style.display = 'block';
+            document.getElementById('venda-nome').innerText = itemAtual.nome;
+            document.getElementById('venda-info').innerText = `Preço: R$ ${itemAtual.preco.toFixed(2)} | Estoque: ${itemAtual.qtd}`;
+            document.getElementById('venda-qtd').value = 1;
+            document.getElementById('btn-cupom').style.display = 'none';
+        }
+    }
+
+    function salvar() {
+        localStorage.setItem('mercadoprev_estoque', JSON.stringify(estoque));
+        localStorage.setItem('mercadoprev_vendas', JSON.stringify(vendas));
+        renderizar();
+        atualizarGrafico();
+    }
+
     function renderizar() {
-        const corpo = document.getElementById('listaProdutos');
+        const busca = document.getElementById('busca').value.toLowerCase();
+        const corpo = document.getElementById('corpoTabela');
         corpo.innerHTML = '';
-        estoque.forEach(i => {
-            corpo.innerHTML += `<tr><td><strong>${i.nome}</strong><br><small>${i.ean}</small></td><td style="text-align:center">${i.qtd}</td><td style="text-align:right">R$ ${i.preco.toFixed(2)}</td></tr>`;
+        const hoje = new Date().toLocaleDateString();
+        const vH = vendas.filter(v => v.data === hoje);
+        
+        document.getElementById('vendaTotal').innerText = `R$ ${vH.reduce((a, b) => a + b.valor, 0).toFixed(2)}`;
+        document.getElementById('vendaQtd').innerText = vH.length;
+
+        estoque.filter(i => i.nome.toLowerCase().includes(busca) || i.ean.includes(busca)).forEach(i => {
+            const dV = i.venc ? Math.ceil((new Date(i.venc) - new Date()) / (1000*60*60*24)) : 999;
+            const classe = dV < 7 ? 'aviso-vencido' : (i.qtd < 5 ? 'aviso-estoque' : '');
+
+            corpo.innerHTML += `
+                <tr class="${classe}">
+                    <td><strong>${i.nome}</strong><br><small style="color:#888">${i.cat}</small></td>
+                    <td>${i.qtd}</td>
+                    <td>${i.venc ? i.venc.split('-').reverse().join('/') : '--'}</td>
+                    <td style="color:var(--venda)">R$ ${i.preco.toFixed(2)}</td>
+                    <td>
+                        <button class="btn-vender-row" onclick="venderDireto(${i.id})">VENDA</button>
+                        <button onclick="remover(${i.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:10px;">🗑️</button>
+                    </td>
+                </tr>`;
         });
+    }
+
+    function remover(id) {
+        if(confirm("Deseja excluir este item?")) {
+            estoque = estoque.filter(i => i.id !== id);
+            salvar();
+        }
+    }
+
+    function gerarPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const hoje = new Date().toLocaleDateString();
+        doc.text("Relatório Mensal Mini Adega & Mercado", 14, 20);
+        const itensRelatorio = vendas.map(v => [v.data, v.nome, v.qtd || 1, `R$ ${v.valor.toFixed(2)}`]);
+        doc.autoTable({
+            startY: 30,
+            head: [['Data', 'Produto', 'Qtd', 'Total']],
+            body: itensRelatorio,
+        });
+        doc.save(`relatorio_vendas_${hoje}.pdf`);
+    }
+
+    function exportar() {
+        const blob = new Blob([JSON.stringify({estoque, vendas})], {type: "application/json"});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'backup_mercado.json'; a.click();
+    }
+
+    function importar(e) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const d = JSON.parse(ev.target.result);
+            estoque = d.estoque; vendas = d.vendas;
+            salvar();
+        };
+        reader.readAsText(e.target.files[0]);
     }
 
     let chart;
     function atualizarGrafico() {
         const ctx = document.getElementById('graficoVendas').getContext('2d');
-        const dias = Array.from({length: 7}, (_, i) => { const d = new Date(); d.setDate(d.getDate() - i); return d.toLocaleDateString(); }).reverse();
-        const dados = dias.map(dia => vendas.filter(v => v.data === dia).reduce((acc, v) => acc + v.total, 0));
+        const labels = Array.from({length: 7}, (_, i) => {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            return d.toLocaleDateString();
+        }).reverse();
+        const data = labels.map(d => vendas.filter(v => v.data === d).reduce((a, b) => a + b.valor, 0));
         if(chart) chart.destroy();
-        chart = new Chart(ctx, { type: 'line', data: { labels: dias, datasets: [{ label: 'Vendas R$', data: dados, borderColor: '#3498db', fill: true, backgroundColor: 'rgba(52, 152, 219, 0.1)' }] }, options: { maintainAspectRatio: false } });
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets: [{ label: 'Vendas R$', data, borderColor: '#3498db', fill: true, backgroundColor: 'rgba(52, 152, 219, 0.1)' }] },
+            options: { maintainAspectRatio: false, scales: { y: { grid: { color: '#333' } }, x: { grid: { color: '#333' } } } }
+        });
     }
 
-    function gerarRelatorioPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("Relatório de Vendas", 14, 20);
-        const rows = vendas.map(v => [v.data, v.item, v.qtd, `R$ ${v.total.toFixed(2)}`]);
-        doc.autoTable({ head: [['Data', 'Produto', 'Qtd', 'Total']], body: rows, startY: 30 });
-        doc.save("relatorio.pdf");
+    function limpar() { 
+        document.getElementById('ean').value = ''; 
+        document.getElementById('nome').value = ''; 
+        document.getElementById('qtd').value = ''; 
+        document.getElementById('preco').value = ''; 
+        document.getElementById('venc').value = '';
     }
 
-    renderizar(); atualizarGrafico();
+    renderizar();
+    atualizarGrafico();
 </script>
 </body>
 </html>
