@@ -8,8 +8,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <title>Sistema PDV - Mini Adega & Mercado</title>
-    
+    <title>Sistema PDV - Alta Precisão</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -24,45 +23,31 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .container { max-width: 900px; margin: auto; background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        /* Scanner Ajustado */
-        #interactive.viewport { width: 100%; height: 250px; border: 2px solid var(--primary); display: none; margin-bottom: 15px; border-radius: 10px; overflow: hidden; position: relative; }
+        /* SCANNER DE ALTA PRECISÃO */
+        #interactive.viewport { width: 100%; height: 300px; border: 3px solid var(--primary); display: none; margin-bottom: 15px; border-radius: 10px; overflow: hidden; position: relative; background: #000; }
         #interactive video { width: 100%; height: 100%; object-fit: cover; }
-        .laser { position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: red; box-shadow: 0 0 10px red; z-index: 10; transform: translateY(-50%); }
+        .laser-box { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 40px solid rgba(0,0,0,0.5); box-sizing: border-box; pointer-events: none; }
+        .laser-line { position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: #ff0000; box-shadow: 0 0 15px #ff0000; animation: scan 2s infinite; }
+        @keyframes scan { 0%, 100% { top: 30%; } 50% { top: 70%; } }
 
-        /* Modal de Venda por Quantidade */
-        #modal-venda { 
-            display: none; background: #252525; padding: 20px; border-radius: 12px; 
-            border: 2px solid var(--venda); margin-bottom: 20px; text-align: center; 
-        }
+        /* MODAL DE VENDA */
+        #modal-venda { display: none; background: #252525; padding: 20px; border-radius: 12px; border: 2px solid var(--venda); margin-bottom: 20px; text-align: center; }
 
         .card { background: #252525; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border); }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-        input, select, button { padding: 12px; background: #2d2d2d; border: 1px solid var(--border); border-radius: 6px; color: white; font-size: 14px; }
+        input, select, button { padding: 12px; background: #2d2d2d; border: 1px solid var(--border); border-radius: 6px; color: white; }
         .btn-add { grid-column: 1 / -1; background: var(--primary); font-weight: bold; cursor: pointer; border: none; }
-        .btn-scan { background: #333; color: var(--primary); width: 100%; margin-bottom: 10px; cursor: pointer; border: 1px solid var(--primary); font-weight: bold; padding: 15px; border-radius: 8px; }
+        .btn-scan { background: #333; color: var(--primary); width: 100%; margin-bottom: 10px; cursor: pointer; border: 1px solid var(--primary); font-weight: bold; padding: 15px; }
 
         .painel-vendas { display: flex; justify-content: space-around; background: #1b2e23; padding: 20px; border-radius: 8px; margin-bottom: 20px; color: var(--venda); border: 1px solid #2d5a3f; }
         .valor-venda { font-weight: 800; font-size: 1.4em; }
 
         #busca { width: 100%; box-sizing: border-box; padding: 15px; margin-bottom: 15px; background: #252525; border: 1px solid var(--primary); color: white; border-radius: 8px; }
-        .table-res { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #2d2d2d; padding: 12px; text-align: left; color: #888; }
         td { padding: 12px; border-bottom: 1px solid var(--border); }
         
-        .aviso-vencido { background-color: rgba(231, 76, 60, 0.2) !important; }
-        .aviso-estoque { border-left: 4px solid var(--warning); }
-        .btn-vender-row { background: var(--venda); color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
-        
-        .chart-box { margin-top: 30px; height: 300px; background: #1e1e1e; padding: 10px; border-radius: 8px; }
-        .backup-area { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-        .btn-pdf { background: #8e44ad !important; color: white !important; font-weight: bold; }
-
-        @media print {
-            body * { visibility: hidden; }
-            #cupom-print, #cupom-print * { visibility: visible; }
-            #cupom-print { position: absolute; left: 0; top: 0; width: 100%; color: black; background: white; padding: 20px; }
-        }
+        @media print { body * { visibility: hidden; } #cupom-print, #cupom-print * { visibility: visible; } #cupom-print { position: absolute; left: 0; top: 0; width: 100%; } }
     </style>
 </head>
 <body>
@@ -70,19 +55,21 @@
 <div class="container">
     <h2 style="text-align:center; color:var(--primary)">🏪 Gestão Mini Adega & Mercado</h2>
 
-    <button class="btn-scan" onclick="ligarScanner()">📷 ESCANEAR CÓDIGO (BIP ATIVO)</button>
-    <div id="interactive" class="viewport"><div class="laser"></div></div>
+    <button class="btn-scan" onclick="ligarScanner()">📷 ESCANEAR CÓDIGO (ALTA PRECISÃO)</button>
+    <div id="interactive" class="viewport">
+        <div class="laser-box"><div class="laser-line"></div></div>
+    </div>
 
     <div id="modal-venda">
-        <h3 id="venda-nome" style="color:var(--venda); margin:0;">NOME DO ITEM</h3>
-        <p id="venda-info" style="color:#888; margin: 10px 0;"></p>
-        <div style="margin-bottom: 15px;">
-            <label style="display:block; font-size:12px; color:var(--primary); margin-bottom:5px;">QUANTIDADE:</label>
-            <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:24px; width:120px; background:#121212;">
+        <h3 id="venda-nome" style="color:var(--venda); margin:0;"></h3>
+        <p id="venda-info" style="color:#888;"></p>
+        <div style="margin: 15px 0;">
+            <label>QUANTIDADE:</label><br>
+            <input type="number" id="venda-qtd" value="1" min="1" style="font-size: 24px; width: 80px; text-align: center;">
         </div>
-        <button class="btn-add" style="background:var(--venda); margin-bottom:5px;" onclick="confirmarVenda()">CONFIRMAR BAIXA</button>
-        <button id="btn-cupom" style="background:#8e44ad; display:none; width:100%; border:none; padding:12px; border-radius:6px; color:white; font-weight:bold; cursor:pointer; margin-bottom:5px;" onclick="imprimirCupom()">🖨️ IMPRIMIR COMPROVANTE</button>
-        <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; cursor:pointer; margin-top:10px;">Cancelar / Fechar</button>
+        <button class="btn-add" style="background:var(--venda)" onclick="confirmarVenda()">FINALIZAR VENDA</button>
+        <button id="btn-cupom" style="background:#8e44ad; display:none; width:100%; margin-top:10px; padding:10px; border:none; color:white; border-radius:6px;" onclick="window.print()">🖨️ IMPRIMIR CUPOM</button>
+        <button onclick="fecharVenda()" style="background:none; border:none; color:#666; cursor:pointer; margin-top:10px;">Cancelar</button>
     </div>
 
     <div class="card">
@@ -98,7 +85,7 @@
                 <option value="Outros">Outros</option>
             </select>
             <input type="number" id="qtd" placeholder="Estoque">
-            <input type="date" id="venc" title="Vencimento">
+            <input type="date" id="venc">
             <input type="number" id="preco" placeholder="Preço R$">
             <button class="btn-add" onclick="adicionar()">CADASTRAR PRODUTO</button>
         </div>
@@ -111,47 +98,35 @@
 
     <input type="text" id="busca" placeholder="🔍 Buscar nome ou código de barras..." onkeyup="renderizar()">
 
-    <div class="table-res">
+    <div style="overflow-x:auto;">
         <table>
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Qtd</th>
-                    <th>Venc.</th>
-                    <th>Preço</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Item</th><th>Qtd</th><th>Venc.</th><th>Preço</th><th>Ação</th></tr></thead>
             <tbody id="corpoTabela"></tbody>
         </table>
     </div>
 
-    <div class="chart-box">
-        <canvas id="graficoVendas"></canvas>
-    </div>
+    <div class="chart-box"><canvas id="graficoVendas"></canvas></div>
 
     <div class="backup-area">
-        <button onclick="exportar()">📥 Backup JSON</button>
+        <button onclick="exportar()">📥 Backup</button>
         <button onclick="document.getElementById('importFile').click()">📤 Importar</button>
-        <button class="btn-pdf" onclick="gerarPDF()">📄 Relatório PDF Mensal</button>
+        <button class="btn-pdf" onclick="gerarPDF()">📄 Relatório PDF</button>
         <input type="file" id="importFile" style="display:none" onchange="importar(event)">
     </div>
 </div>
 
-<div id="cupom-print" style="display:none;"></div>
+<div id="cupom-print" style="display:none; font-family:monospace; text-align:center;"></div>
 
 <script>
     let estoque = JSON.parse(localStorage.getItem('mercadoprev_estoque')) || [];
     let vendas = JSON.parse(localStorage.getItem('mercadoprev_vendas')) || [];
     let itemAtual = null;
-    let dadosUltimoCupom = null;
 
     function tocarBip() {
         const context = new (window.AudioContext || window.webkitAudioContext)();
         const osc = context.createOscillator();
         const gain = context.createGain();
-        osc.frequency.setValueAtTime(880, context.currentTime);
-        gain.gain.setValueAtTime(0.1, context.currentTime);
+        osc.frequency.value = 880; gain.gain.value = 0.1;
         osc.connect(gain); gain.connect(context.destination);
         osc.start(); osc.stop(context.currentTime + 0.1);
     }
@@ -160,11 +135,16 @@
         tocarBip();
         const div = document.getElementById('interactive');
         div.style.display = 'block';
-        document.getElementById('modal-venda').style.display = 'none';
         
         Quagga.init({
-            inputStream: { name: "Live", type: "LiveStream", target: div, constraints: { facingMode: "environment" } },
-            decoder: { readers: ["ean_reader", "upc_reader", "code_128_reader"] },
+            inputStream: { 
+                name: "Live", 
+                type: "LiveStream", 
+                target: div,
+                constraints: { width: 1280, height: 720, facingMode: "environment", focusMode: "continuous" }
+            },
+            locator: { patchSize: "medium", halfSample: false }, // Aumenta precisão de localização
+            decoder: { readers: ["ean_reader", "code_128_reader", "upc_reader"] },
             locate: true
         }, err => { if(!err) Quagga.start(); });
     }
@@ -179,71 +159,34 @@
         if(itemAtual) {
             document.getElementById('modal-venda').style.display = 'block';
             document.getElementById('venda-nome').innerText = itemAtual.nome;
-            document.getElementById('venda-info').innerText = `Preço: R$ ${itemAtual.preco.toFixed(2)} | Estoque: ${itemAtual.qtd}`;
-            document.getElementById('venda-qtd').value = 1;
-            document.getElementById('btn-cupom').style.display = 'none';
+            document.getElementById('venda-info').innerText = `R$ ${itemAtual.preco.toFixed(2)}`;
+            document.getElementById('venda-qtd').focus();
         } else {
             document.getElementById('ean').value = cod;
-            alert("Produto não cadastrado. O código foi inserido no campo de cadastro.");
+            alert("Código: " + cod + " (Produto não cadastrado)");
         }
     });
 
     function confirmarVenda() {
-        const qtdVenda = parseInt(document.getElementById('venda-qtd').value);
-        if(itemAtual && itemAtual.qtd >= qtdVenda) {
-            itemAtual.qtd -= qtdVenda;
-            const valorTotal = itemAtual.preco * qtdVenda;
+        const q = parseInt(document.getElementById('venda-qtd').value);
+        if(itemAtual && itemAtual.qtd >= q) {
+            itemAtual.qtd -= q;
+            const total = itemAtual.preco * q;
+            vendas.push({ data: new Date().toLocaleDateString(), valor: total, nome: itemAtual.nome, qtd: q });
             
-            dadosUltimoCupom = {
-                data: new Date().toLocaleString(),
-                nome: itemAtual.nome,
-                qtd: qtdVenda,
-                preco: itemAtual.preco,
-                total: valorTotal
-            };
-
-            vendas.push({ 
-                data: new Date().toLocaleDateString(), 
-                valor: valorTotal, 
-                nome: itemAtual.nome,
-                qtd: qtdVenda 
-            });
+            // Prepara Cupom
+            document.getElementById('cupom-print').innerHTML = `
+                <h3>MINI ADEGA</h3><p>${new Date().toLocaleString()}</p>
+                <hr><p>${itemAtual.nome}<br>${q}x R$ ${itemAtual.preco.toFixed(2)}</p>
+                <h4>TOTAL R$ ${total.toFixed(2)}</h4><hr>
+            `;
             
             salvar();
             document.getElementById('btn-cupom').style.display = 'block';
-            alert("Venda realizada com sucesso!");
-        } else {
-            alert("Estoque insuficiente!");
-        }
+        } else { alert("Estoque insuficiente!"); }
     }
 
-    function imprimirCupom() {
-        if(!dadosUltimoCupom) return;
-        const cupomHtml = `
-            <div style="text-align:center; font-family:monospace; width:100%;">
-                <h2>MINI ADEGA & MERCADO</h2>
-                <p>--------------------------------</p>
-                <p>COMPROVANTE DE VENDA</p>
-                <p>${dadosUltimoCupom.data}</p>
-                <p>--------------------------------</p>
-                <div style="text-align:left;">
-                    <p>PRODUTO: ${dadosUltimoCupom.nome}</p>
-                    <p>QTD: ${dadosUltimoCupom.qtd} x R$ ${dadosUltimoCupom.preco.toFixed(2)}</p>
-                    <p><strong>TOTAL: R$ ${dadosUltimoCupom.total.toFixed(2)}</strong></p>
-                </div>
-                <p>--------------------------------</p>
-                <p>Obrigado pela preferência!</p>
-            </div>
-        `;
-        const area = document.getElementById('cupom-print');
-        area.innerHTML = cupomHtml;
-        window.print();
-    }
-
-    function cancelarVenda() {
-        document.getElementById('modal-venda').style.display = 'none';
-        itemAtual = null;
-    }
+    function fecharVenda() { document.getElementById('modal-venda').style.display = 'none'; itemAtual = null; }
 
     function adicionar() {
         const item = {
@@ -255,21 +198,10 @@
             venc: document.getElementById('venc').value,
             preco: parseFloat(document.getElementById('preco').value) || 0
         };
-        if(!item.nome) return alert("Nome obrigatório!");
+        if(!item.nome) return;
         estoque.push(item);
         salvar();
         limpar();
-    }
-
-    function venderDireto(id) {
-        itemAtual = estoque.find(i => i.id === id);
-        if(itemAtual) {
-            document.getElementById('modal-venda').style.display = 'block';
-            document.getElementById('venda-nome').innerText = itemAtual.nome;
-            document.getElementById('venda-info').innerText = `Preço: R$ ${itemAtual.preco.toFixed(2)} | Estoque: ${itemAtual.qtd}`;
-            document.getElementById('venda-qtd').value = 1;
-            document.getElementById('btn-cupom').style.display = 'none';
-        }
     }
 
     function salvar() {
@@ -285,91 +217,60 @@
         corpo.innerHTML = '';
         const hoje = new Date().toLocaleDateString();
         const vH = vendas.filter(v => v.data === hoje);
-        
-        document.getElementById('vendaTotal').innerText = `R$ ${vH.reduce((a, b) => a + b.valor, 0).toFixed(2)}`;
+        document.getElementById('vendaTotal').innerText = `R$ ${vH.reduce((a,b) => a + b.valor, 0).toFixed(2)}`;
         document.getElementById('vendaQtd').innerText = vH.length;
 
         estoque.filter(i => i.nome.toLowerCase().includes(busca) || i.ean.includes(busca)).forEach(i => {
-            const dV = i.venc ? Math.ceil((new Date(i.venc) - new Date()) / (1000*60*60*24)) : 999;
-            const classe = dV < 7 ? 'aviso-vencido' : (i.qtd < 5 ? 'aviso-estoque' : '');
-
             corpo.innerHTML += `
-                <tr class="${classe}">
-                    <td><strong>${i.nome}</strong><br><small style="color:#888">${i.cat}</small></td>
+                <tr>
+                    <td><strong>${i.nome}</strong></td>
                     <td>${i.qtd}</td>
-                    <td>${i.venc ? i.venc.split('-').reverse().join('/') : '--'}</td>
-                    <td style="color:var(--venda)">R$ ${i.preco.toFixed(2)}</td>
-                    <td>
-                        <button class="btn-vender-row" onclick="venderDireto(${i.id})">VENDA</button>
-                        <button onclick="remover(${i.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:10px;">🗑️</button>
-                    </td>
+                    <td>${i.venc || '--'}</td>
+                    <td>R$ ${i.preco.toFixed(2)}</td>
+                    <td><button class="btn-vender-row" onclick="venderPelaTabela(${i.id})">VENDA</button></td>
                 </tr>`;
         });
     }
 
-    function remover(id) {
-        if(confirm("Deseja excluir este item?")) {
-            estoque = estoque.filter(i => i.id !== id);
-            salvar();
-        }
+    function venderPelaTabela(id) {
+        itemAtual = estoque.find(i => i.id === id);
+        document.getElementById('modal-venda').style.display = 'block';
+        document.getElementById('venda-nome').innerText = itemAtual.nome;
+        document.getElementById('venda-info').innerText = `R$ ${itemAtual.preco.toFixed(2)}`;
     }
 
     function gerarPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const hoje = new Date().toLocaleDateString();
-        doc.text("Relatório Mensal Mini Adega & Mercado", 14, 20);
-        const itensRelatorio = vendas.map(v => [v.data, v.nome, v.qtd || 1, `R$ ${v.valor.toFixed(2)}`]);
-        doc.autoTable({
-            startY: 30,
-            head: [['Data', 'Produto', 'Qtd', 'Total']],
-            body: itensRelatorio,
-        });
-        doc.save(`relatorio_vendas_${hoje}.pdf`);
+        doc.text("Relatorio de Vendas", 14, 20);
+        doc.autoTable({ head: [['Data', 'Item', 'Qtd', 'Total']], body: vendas.map(v => [v.data, v.nome, v.qtd, v.valor.toFixed(2)]) });
+        doc.save("vendas.pdf");
     }
 
     function exportar() {
         const blob = new Blob([JSON.stringify({estoque, vendas})], {type: "application/json"});
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = 'backup_mercado.json'; a.click();
+        a.href = URL.createObjectURL(blob); a.download = 'backup.json'; a.click();
     }
 
     function importar(e) {
         const reader = new FileReader();
-        reader.onload = (ev) => {
-            const d = JSON.parse(ev.target.result);
-            estoque = d.estoque; vendas = d.vendas;
-            salvar();
-        };
+        reader.onload = (ev) => { estoque = JSON.parse(ev.target.result).estoque; salvar(); };
         reader.readAsText(e.target.files[0]);
     }
 
     let chart;
     function atualizarGrafico() {
         const ctx = document.getElementById('graficoVendas').getContext('2d');
-        const labels = Array.from({length: 7}, (_, i) => {
-            const d = new Date(); d.setDate(d.getDate() - i);
-            return d.toLocaleDateString();
-        }).reverse();
+        const labels = Array.from({length: 7}, (_, i) => { const d = new Date(); d.setDate(d.getDate() - i); return d.toLocaleDateString(); }).reverse();
         const data = labels.map(d => vendas.filter(v => v.data === d).reduce((a, b) => a + b.valor, 0));
         if(chart) chart.destroy();
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: { labels, datasets: [{ label: 'Vendas R$', data, borderColor: '#3498db', fill: true, backgroundColor: 'rgba(52, 152, 219, 0.1)' }] },
-            options: { maintainAspectRatio: false, scales: { y: { grid: { color: '#333' } }, x: { grid: { color: '#333' } } } }
-        });
+        chart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Vendas R$', data, borderColor: '#3498db' }] } });
     }
 
-    function limpar() { 
-        document.getElementById('ean').value = ''; 
-        document.getElementById('nome').value = ''; 
-        document.getElementById('qtd').value = ''; 
-        document.getElementById('preco').value = ''; 
-        document.getElementById('venc').value = '';
-    }
+    function limpar() { document.querySelectorAll('.card input').forEach(i => i.value = ''); }
 
-    renderizar();
-    atualizarGrafico();
+    renderizar(); atualizarGrafico();
 </script>
 </body>
 </html>
