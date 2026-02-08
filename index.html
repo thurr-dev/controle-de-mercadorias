@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV Profissional - Scanner & Bip</title>
+    <title>PDV - Scanner Veloz</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
-        :root { --bg: #0f0f0f; --card: #1a1a1a; --text: #eee; --primary: #3498db; --success: #2ecc71; --border: #333; }
+        :root { --bg: #0d0d0d; --card: #1a1a1a; --text: #eee; --primary: #3498db; --success: #2ecc71; --border: #333; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .container { max-width: 600px; margin: auto; }
         .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
         
-        /* Ajuste do Scanner */
-        #interactive.viewport { width: 100%; height: 250px; border: 2px solid var(--primary); display: none; border-radius: 15px; overflow: hidden; position: relative; background: #000; }
+        /* Scanner igual ao anterior */
+        #interactive.viewport { width: 100%; height: 220px; border: 2px solid var(--primary); display: none; border-radius: 15px; overflow: hidden; position: relative; background: #000; }
         #interactive video { width: 100%; height: 100%; object-fit: cover; }
-        .laser { position: absolute; top: 50%; left: 50%; width: 80%; height: 2px; background: red; transform: translate(-50%, -50%); box-shadow: 0 0 10px red; z-index: 10; }
+        .laser { position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: red; box-shadow: 0 0 10px red; z-index: 10; transform: translateY(-50%); }
 
-        #modal-venda { display: none; background: #222; padding: 20px; border-radius: 12px; border: 2px solid var(--success); margin-top: 15px; text-align: center; }
+        #modal-venda { display: none; background: #1e1e1e; padding: 20px; border-radius: 12px; border: 2px solid var(--success); margin-top: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         
         input, button { padding: 14px; background: #252525; border: 1px solid var(--border); border-radius: 8px; color: white; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; }
         .btn-blue { background: var(--primary); font-weight: bold; border: none; cursor: pointer; }
@@ -27,19 +27,21 @@
         
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
         th { text-align: left; color: #888; padding-bottom: 10px; }
-        td { padding: 10px 0; border-bottom: 1px solid var(--border); }
+        td { padding: 12px 0; border-bottom: 1px solid var(--border); }
 
         #toast { visibility: hidden; background: var(--success); color: #fff; text-align: center; border-radius: 8px; padding: 15px; position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); }
-        #toast.show { visibility: visible; }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 20px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 20px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div id="toast">✅ Concluído!</div>
-    <h2 style="text-align:center; color:var(--primary);">🏪 Gestão de Estoque</h2>
+    <h2 style="text-align:center; color:var(--primary); margin-bottom:20px;">🏪 PDV - Mini Adega</h2>
 
-    <button class="btn-blue" onclick="iniciarVenda()">📷 ESCANEAR PARA VENDER</button>
+    <button class="btn-blue" onclick="ligarScanner()">📷 ESCANEAR PRODUTO</button>
     
     <div id="interactive" class="viewport">
         <div class="laser"></div>
@@ -47,125 +49,106 @@
 
     <div id="modal-venda">
         <h3 id="venda-nome" style="color:var(--success); margin:0;">NOME</h3>
-        <p id="venda-preco" style="color:#888;"></p>
-        <label>Quantidade:</label>
-        <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:20px;">
-        <button class="btn-green" onclick="confirmarBaixa()">CONFIRMAR VENDA</button>
-        <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; margin-top:10px; cursor:pointer;">Cancelar</button>
+        <p id="venda-preco" style="color:#888; margin: 10px 0;"></p>
+        <div style="background: #252525; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+            <label style="display:block; margin-bottom:5px; font-size:12px; color:var(--primary);">QUANTIDADE NA VENDA:</label>
+            <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:24px; border:none; background:transparent; margin:0;">
+        </div>
+        <button class="btn-green" onclick="confirmarVenda()">FINALIZAR ESTA VENDA</button>
+        <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; margin-top:5px; cursor:pointer;">Cancelar</button>
     </div>
 
-    <div class="card">
-        <h4>📦 Cadastro de Produto</h4>
+    <div class="card" style="margin-top:20px;">
+        <h4 style="margin-top:0;">📦 Cadastro Rápido</h4>
         <input type="text" id="ean" placeholder="Código de Barras">
         <input type="text" id="nome" placeholder="Nome do Produto">
         <input type="number" id="estoque-inicial" placeholder="Qtd em Estoque">
-        <input type="number" id="preco-venda" placeholder="Preço de Venda R$">
-        <button class="btn-blue" onclick="cadastrar()">CADASTRAR PRODUTO</button>
+        <input type="number" id="preco-venda" placeholder="Preço R$">
+        <button class="btn-blue" onclick="cadastrar()">SALVAR PRODUTO</button>
     </div>
 
     <div class="card">
-        <h4>📋 Estoque & Validade</h4>
+        <h4>📋 Estoque Atual</h4>
         <table>
-            <thead><tr><th>Item</th><th>Qtd</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Item</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preço</th></tr></thead>
             <tbody id="listaProdutos"></tbody>
         </table>
     </div>
 
     <div class="card">
-        <h4>📈 Relatório Semanal</h4>
-        <div style="height: 200px;"><canvas id="graficoVendas"></canvas></div>
-        <button class="btn-blue" style="margin-top:20px;" onclick="gerarRelatorioPDF()">📊 BAIXAR RELATÓRIO MENSAL</button>
+        <h4>📈 Desempenho Semanal</h4>
+        <div style="height: 180px;"><canvas id="graficoVendas"></canvas></div>
+        <button class="btn-blue" style="margin-top:20px;" onclick="gerarRelatorioPDF()">📄 BAIXAR RELATÓRIO MENSAL</button>
     </div>
 </div>
 
 <script>
-    let estoque = JSON.parse(localStorage.getItem('loja_estoque')) || [];
-    let historicoVendas = JSON.parse(localStorage.getItem('loja_vendas')) || [];
-    let produtoEncontrado = null;
+    let estoque = JSON.parse(localStorage.getItem('adega_v5_estoque')) || [];
+    let vendas = JSON.parse(localStorage.getItem('adega_v5_vendas')) || [];
+    let itemAtual = null;
 
-    // --- FUNÇÃO DO BIP CORRIGIDA ---
-    function tocarBip() {
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // Nota Lá
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.1); // Duração de 100ms
-        } catch (e) {
-            console.log("Erro ao tocar som: ", e);
-        }
+    function somBip() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = 880; gain.gain.value = 0.1;
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
-    function iniciarVenda() {
-        // Tocar um bip silencioso para "desbloquear" o áudio no navegador
-        tocarBip();
-        abrirScanner();
-    }
-
-    function abrirScanner() {
+    function ligarScanner() {
+        somBip(); // Ativa áudio
         document.getElementById('interactive').style.display = 'block';
         document.getElementById('modal-venda').style.display = 'none';
 
         Quagga.init({
-            inputStream: { 
-                name: "Live", 
-                type: "LiveStream", 
-                target: document.querySelector('#interactive'),
-                constraints: { facingMode: "environment", focusMode: "continuous" }
-            },
+            inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#interactive'), constraints: { facingMode: "environment" } },
             decoder: { readers: ["ean_reader"] },
             locate: true
-        }, err => {
-            if(!err) Quagga.start();
-        });
+        }, err => { if(!err) Quagga.start(); });
     }
 
     Quagga.onDetected(data => {
         const cod = data.codeResult.code;
-        produtoEncontrado = estoque.find(i => i.ean === cod);
+        itemAtual = estoque.find(i => i.ean === cod);
 
-        if(produtoEncontrado) {
-            tocarBip(); // SOM DO BIP NO SUCESSO
+        if(itemAtual) {
+            somBip();
             Quagga.stop();
             document.getElementById('interactive').style.display = 'none';
+            
+            // Abre Opção de Quantidade
             document.getElementById('modal-venda').style.display = 'block';
-            document.getElementById('venda-nome').innerText = produtoEncontrado.nome;
-            document.getElementById('venda-preco').innerText = "R$ " + produtoEncontrado.preco.toFixed(2);
+            document.getElementById('venda-nome').innerText = itemAtual.nome;
+            document.getElementById('venda-preco').innerText = "Valor Unitário: R$ " + itemAtual.preco.toFixed(2);
             document.getElementById('venda-qtd').value = 1;
+            document.getElementById('venda-qtd').focus();
         } else {
             document.getElementById('ean').value = cod;
         }
     });
 
-    function confirmarBaixa() {
+    function confirmarVenda() {
         const qtd = parseInt(document.getElementById('venda-qtd').value);
-        if(produtoEncontrado.qtd >= qtd) {
-            produtoEncontrado.qtd -= qtd;
-            historicoVendas.push({
+        if(itemAtual.qtd >= qtd) {
+            itemAtual.qtd -= qtd;
+            vendas.push({
                 data: new Date().toLocaleDateString(),
-                item: produtoEncontrado.nome,
+                item: itemAtual.nome,
                 qtd: qtd,
-                total: produtoEncontrado.preco * qtd
+                total: itemAtual.preco * qtd
             });
-            salvar();
+            salvarTudo();
             cancelarVenda();
-            mostrarToast("Venda Concluída!");
+            mostrarSucesso("Venda de " + qtd + "x " + itemAtual.nome + " Concluída!");
         } else {
-            alert("Estoque insuficiente! Disponível: " + produtoEncontrado.qtd);
+            alert("Estoque insuficiente! Você só tem " + itemAtual.qtd + " unidades.");
         }
     }
 
-    function cancelarVenda() {
-        document.getElementById('modal-venda').style.display = 'none';
-        produtoEncontrado = null;
+    function cancelarVenda() { 
+        document.getElementById('modal-venda').style.display = 'none'; 
+        itemAtual = null; 
     }
 
     function cadastrar() {
@@ -176,23 +159,23 @@
             qtd: parseInt(document.getElementById('estoque-inicial').value) || 0,
             preco: parseFloat(document.getElementById('preco-venda').value) || 0
         };
-        if(!item.nome || !item.ean) return alert("Preencha os campos!");
+        if(!item.nome || !item.ean) return alert("Erro: Nome e Código de Barras são obrigatórios!");
         estoque.push(item);
-        salvar();
-        mostrarToast("Produto Cadastrado!");
+        salvarTudo();
+        mostrarSucesso("Produto Cadastrado!");
         document.querySelectorAll('input').forEach(i => i.value = '');
     }
 
-    function mostrarToast(msg) {
+    function mostrarSucesso(msg) {
         const t = document.getElementById('toast');
         t.innerText = "✅ " + msg;
         t.className = "show";
         setTimeout(() => t.className = "", 3000);
     }
 
-    function salvar() {
-        localStorage.setItem('loja_estoque', JSON.stringify(estoque));
-        localStorage.setItem('loja_vendas', JSON.stringify(historicoVendas));
+    function salvarTudo() {
+        localStorage.setItem('adega_v5_estoque', JSON.stringify(estoque));
+        localStorage.setItem('adega_v5_vendas', JSON.stringify(vendas));
         renderizar();
         atualizarGrafico();
     }
@@ -202,18 +185,11 @@
         corpo.innerHTML = '';
         estoque.forEach(i => {
             corpo.innerHTML += `<tr>
-                <td><strong>${i.nome}</strong><br><small>${i.ean}</small></td>
-                <td>${i.qtd}</td>
-                <td><button onclick="remover(${i.id})" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:18px;">🗑️</button></td>
+                <td><strong>${i.nome}</strong><br><small style="color:#666">${i.ean}</small></td>
+                <td style="text-align:center">${i.qtd}</td>
+                <td style="text-align:right; color:var(--success)">R$ ${i.preco.toFixed(2)}</td>
             </tr>`;
         });
-    }
-
-    function remover(id) {
-        if(confirm("Deseja excluir este produto?")) {
-            estoque = estoque.filter(i => i.id !== id);
-            salvar();
-        }
     }
 
     let chart;
@@ -224,36 +200,33 @@
             return d.toLocaleDateString();
         }).reverse();
 
-        const dados = dias.map(dia => {
-            return historicoVendas.filter(v => v.data === dia).reduce((acc, v) => acc + v.total, 0);
-        });
+        const dados = dias.map(dia => vendas.filter(v => v.data === dia).reduce((acc, v) => acc + v.total, 0));
 
         if(chart) chart.destroy();
         chart = new Chart(ctx, {
-            type: 'bar',
-            data: { labels: dias, datasets: [{ label: 'Vendas (R$)', data: dados, backgroundColor: '#3498db', borderRadius: 5 }] },
-            options: { maintainAspectRatio: false, scales: { y: { grid: { color: '#333' }, ticks: { color: '#888' } }, x: { ticks: { color: '#888' } } }, plugins: { legend: { display: false } } }
+            type: 'line',
+            data: { labels: dias, datasets: [{ label: 'Vendas R$', data: dados, borderColor: '#3498db', fill: true, backgroundColor: 'rgba(52, 152, 219, 0.1)', tension: 0.3 }] },
+            options: { maintainAspectRatio: false, scales: { y: { grid: { color: '#222' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
         });
     }
 
     function gerarRelatorioPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.setFontSize(16);
-        doc.text("Relatório Mensal de Vendas", 14, 20);
+        doc.text("Relatório de Movimentação - Mensal", 14, 20);
         
-        const rows = historicoVendas.map(v => [v.data, v.item, v.qtd, `R$ ${v.total.toFixed(2)}`]);
-        const totalGeral = historicoVendas.reduce((acc, v) => acc + v.total, 0);
+        const rows = vendas.map(v => [v.data, v.item, v.qtd, `R$ ${v.total.toFixed(2)}`]);
+        const total = vendas.reduce((acc, v) => acc + v.total, 0);
 
         doc.autoTable({
             head: [['Data', 'Produto', 'Qtd', 'Total']],
             body: rows,
             startY: 30,
-            theme: 'grid'
+            theme: 'striped'
         });
 
-        doc.text(`Total Acumulado: R$ ${totalGeral.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 10);
-        doc.save("relatorio_vendas_adega.pdf");
+        doc.text("Faturamento Total: R$ " + total.toFixed(2), 14, doc.lastAutoTable.finalY + 10);
+        doc.save("relatorio_adega.pdf");
     }
 
     renderizar();
