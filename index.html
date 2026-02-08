@@ -3,40 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Adega Pro - Gestão Total</title>
+    <title>Adega Pro - Digitação Facilitada</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root { --bg: #0d0d0d; --card: #1a1a1a; --primary: #3498db; --success: #2ecc71; --danger: #e74c3c; --text: #eee; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .card { background: var(--card); border: 1px solid #333; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+        
         #reader { width: 100%; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 10px; border: 2px solid var(--primary) !important; }
         
         .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; font-size: 16px; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .btn-blue { background: var(--primary); }
         .btn-green { background: var(--success); }
-        .btn-danger { background: var(--danger); }
         
         .btn-acao { padding: 8px; font-size: 12px; width: auto; margin: 0 2px; border-radius: 4px; border: none; color: white; cursor: pointer; }
         .btn-edit { background: #f39c12; }
         .btn-del { background: #e74c3c; }
         .btn-cal { background: #e67e22; }
 
-        input { width: 100%; padding: 12px; margin-bottom: 10px; background: #252525; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; }
+        .input-group { display: flex; gap: 5px; margin-bottom: 10px; }
+        input { width: 100%; padding: 14px; background: #252525; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        input:focus { border-color: var(--primary); outline: none; background: #2d2d2d; }
+
         .item-carrinho { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding: 12px 0; }
         .total-venda { font-size: 1.8em; text-align: right; color: var(--success); margin: 15px 0; font-weight: bold; }
         
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #222; }
         .alerta-estoque { color: #f1c40f; font-weight: bold; }
-        .flex-acoes { display: flex; gap: 5px; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <h2 style="text-align:center; margin:0 0 15px 0;">🛒 Frente de Caixa</h2>
+    
+    <div class="input-group">
+        <input type="number" id="busca-manual" placeholder="Digite o Código de Barras..." inputmode="numeric">
+        <button class="btn-blue" style="width: 80px; margin:0; border-radius: 8px;" onclick="buscarManual()">🔍</button>
+    </div>
+
+    <button class="btn btn-blue" id="btn-scan" onclick="iniciarLeitor()">📷 USAR CÂMERA</button>
     <div id="reader"></div>
-    <button class="btn btn-blue" id="btn-scan" onclick="iniciarLeitor()">📷 ESCANEAR PRODUTO</button>
 
     <div id="carrinhoLista"></div>
     <div class="total-venda">Total: <span id="valorTotal">R$ 0,00</span></div>
@@ -44,10 +52,10 @@
 </div>
 
 <div class="card">
-    <h3>📦 Cadastro de Novo Produto</h3>
-    <input type="text" id="cad-ean" placeholder="Código de Barras">
+    <h3>📦 Cadastro de Produto</h3>
+    <input type="number" id="cad-ean" placeholder="Código de Barras (Números)" inputmode="numeric">
     <input type="text" id="cad-nome" placeholder="Nome do Produto">
-    <input type="number" id="cad-qtd" placeholder="Quantidade Inicial">
+    <input type="number" id="cad-qtd" placeholder="Quantidade em Estoque">
     <input type="number" id="cad-preco" placeholder="Preço de Venda R$">
     <label style="font-size:12px;">Data de Vencimento:</label>
     <input type="date" id="cad-venc">
@@ -55,18 +63,17 @@
 </div>
 
 <div class="card">
-    <h3>📋 Gestão de Estoque & Validade</h3>
+    <h3>📋 Estoque & Ações</h3>
     <div id="listaEstoque" style="overflow-x:auto;"></div>
 </div>
 
 <script>
-    let estoque = JSON.parse(localStorage.getItem('adega_v10_est')) || [];
-    let vendas = JSON.parse(localStorage.getItem('adega_v10_ven')) || [];
+    let estoque = JSON.parse(localStorage.getItem('adega_v11_est')) || [];
+    let vendas = JSON.parse(localStorage.getItem('adega_v11_ven')) || [];
     let carrinho = [];
     let html5QrCode;
     const NUMERO_ZAP = "5531997371625";
 
-    // --- FUNÇÕES DE ÁUDIO ---
     function bip() {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator();
@@ -74,6 +81,14 @@
         osc.connect(gain); gain.connect(audioCtx.destination);
         osc.frequency.value = 1000; gain.gain.value = 0.1;
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // --- BUSCA MANUAL ---
+    function buscarManual() {
+        const codigo = document.getElementById('busca-manual').value;
+        if (!codigo) return;
+        processarLeitura(codigo);
+        document.getElementById('busca-manual').value = '';
     }
 
     // --- SCANNER ---
@@ -92,7 +107,7 @@
     function processarLeitura(codigo) {
         const produto = estoque.find(i => i.ean === codigo);
         if (produto) {
-            const qtdVendida = prompt(`Produto: ${produto.nome}\nEstoque: ${produto.qtd}\n\nQuantas unidades vender?`, "1");
+            const qtdVendida = prompt(`Produto: ${produto.nome}\nEstoque: ${produto.qtd}\n\nQuantas unidades?`, "1");
             if (qtdVendida && parseInt(qtdVendida) > 0) {
                 const num = parseInt(qtdVendida);
                 const noCarrinho = carrinho.find(c => c.ean === codigo);
@@ -101,11 +116,12 @@
             }
         } else {
             document.getElementById('cad-ean').value = codigo;
-            alert("Produto não cadastrado! Use o formulário abaixo.");
+            alert("Produto não cadastrado!");
+            document.getElementById('cad-nome').focus();
         }
     }
 
-    // --- CARRINHO ---
+    // --- GESTÃO ---
     function renderCarrinho() {
         const div = document.getElementById('carrinhoLista');
         div.innerHTML = ''; let total = 0;
@@ -115,7 +131,7 @@
                 <div class="item-carrinho">
                     <span>${item.nome} (x${item.qtdVenda})</span>
                     <span>R$ ${(item.preco * item.qtdVenda).toFixed(2)} 
-                    <button onclick="removerItemCarrinho(${idx})" style="color:red; background:none; border:none; font-weight:bold; cursor:pointer;">X</button></span>
+                    <button onclick="removerItemCarrinho(${idx})" style="color:red; background:none; border:none; font-weight:bold;">X</button></span>
                 </div>`;
         });
         document.getElementById('valorTotal').innerText = `R$ ${total.toFixed(2)}`;
@@ -141,67 +157,50 @@
         vendas.push({ data, valor: totalVenda });
         carrinho = [];
         salvar();
-        alert("Venda realizada com sucesso!");
+        alert("Venda realizada!");
 
         if(alertas.length > 0) {
             window.open(`https://wa.me/${NUMERO_ZAP}?text=${window.encodeURIComponent(alertas.join("\n"))}`);
         }
     }
 
-    // --- GESTÃO DE ESTOQUE (MODIFICAR / EXCLUIR) ---
     function editarProduto(ean) {
         const p = estoque.find(i => i.ean === ean);
         if(p) {
-            const novoNome = prompt("Novo nome:", p.nome);
-            const novaQtd = prompt("Nova quantidade total em estoque:", p.qtd);
-            const novoPreco = prompt("Novo preço:", p.preco);
-            
-            if(novoNome) p.nome = novoNome;
-            if(novaQtd !== null) p.qtd = parseInt(novaQtd);
-            if(novoPreco !== null) p.preco = parseFloat(novoPreco);
-            
+            const nNome = prompt("Nome:", p.nome);
+            const nQtd = prompt("Estoque Total:", p.qtd);
+            const nPreco = prompt("Preço:", p.preco);
+            if(nNome) p.nome = nNome;
+            if(nQtd !== null) p.qtd = parseInt(nQtd);
+            if(nPreco !== null) p.preco = parseFloat(nPreco);
             salvar();
-            alert("Produto atualizado!");
         }
     }
 
     function excluirProduto(ean) {
-        if(confirm("Tem certeza que deseja excluir este produto do estoque?")) {
+        if(confirm("Excluir produto?")) {
             estoque = estoque.filter(i => i.ean !== ean);
             salvar();
         }
     }
 
-    function agendarCalendario(nome, vencimento) {
-        if(!vencimento) return alert("Defina uma data de vencimento primeiro!");
-        const dataFormatada = vencimento.replace(/-/g, '');
-        const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${encodeURIComponent(nome)}&dates=${dataFormatada}/${dataFormatada}&details=Produto+vencendo+na+Adega&sf=true&output=xml`;
-        window.open(url, '_blank');
-    }
-
-    // --- CADASTRO ---
     function salvarProduto() {
-        const ean = document.getElementById('cad-ean').value;
-        if(estoque.some(i => i.ean === ean)) return alert("Este código já está cadastrado! Use a edição na lista abaixo.");
-
         const p = {
-            ean: ean,
+            ean: document.getElementById('cad-ean').value,
             nome: document.getElementById('cad-nome').value,
             qtd: parseInt(document.getElementById('cad-qtd').value) || 0,
             preco: parseFloat(document.getElementById('cad-preco').value) || 0,
             venc: document.getElementById('cad-venc').value
         };
-        
-        if(!p.ean || !p.nome) return alert("EAN e Nome são obrigatórios!");
-        
+        if(!p.ean || !p.nome) return alert("Preencha EAN e Nome!");
         estoque.push(p);
         salvar();
         document.querySelectorAll('input').forEach(i => i.value = '');
     }
 
     function salvar() {
-        localStorage.setItem('adega_v10_est', JSON.stringify(estoque));
-        localStorage.setItem('adega_v10_ven', JSON.stringify(vendas));
+        localStorage.setItem('adega_v11_est', JSON.stringify(estoque));
+        localStorage.setItem('adega_v11_ven', JSON.stringify(vendas));
         renderEstoque();
         renderCarrinho();
     }
@@ -209,17 +208,14 @@
     function renderEstoque() {
         const div = document.getElementById('listaEstoque');
         let html = '<table><tr><th>Item</th><th>Qtd</th><th>Ações</th></tr>';
-        
         estoque.forEach(i => {
-            const dataBr = i.venc ? i.venc.split('-').reverse().join('/') : '--';
             html += `<tr>
-                <td><strong>${i.nome}</strong><br><small>Venc: ${dataBr}</small></td>
+                <td><strong>${i.nome}</strong><br><small>${i.ean}</small></td>
                 <td class="${i.qtd <= 5 ? 'alerta-estoque' : ''}">${i.qtd}</td>
                 <td>
-                    <div class="flex-acoes">
-                        <button class="btn-acao btn-edit" onclick="editarProduto('${i.ean}')" title="Editar">✏️</button>
-                        <button class="btn-acao btn-del" onclick="excluirProduto('${i.ean}')" title="Excluir">🗑️</button>
-                        <button class="btn-acao btn-cal" onclick="agendarCalendario('${i.nome}', '${i.venc}')" title="Agenda">📅</button>
+                    <div style="display:flex; gap:3px;">
+                        <button class="btn-acao btn-edit" onclick="editarProduto('${i.ean}')">✏️</button>
+                        <button class="btn-acao btn-del" onclick="excluirProduto('${i.ean}')">🗑️</button>
                     </div>
                 </td>
             </tr>`;
@@ -227,7 +223,6 @@
         div.innerHTML = html + '</table>';
     }
 
-    // Inicializar lista ao abrir
     renderEstoque();
 </script>
 </body>
