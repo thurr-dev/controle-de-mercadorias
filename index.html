@@ -3,24 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV - Scanner Veloz</title>
+    
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <title>PDV - Mini Adega Profissional</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
     <style>
         :root { --bg: #0d0d0d; --card: #1a1a1a; --text: #eee; --primary: #3498db; --success: #2ecc71; --border: #333; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .container { max-width: 600px; margin: auto; }
-        .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
         
-        /* Scanner igual ao anterior */
+        /* Scanner Rápido */
         #interactive.viewport { width: 100%; height: 220px; border: 2px solid var(--primary); display: none; border-radius: 15px; overflow: hidden; position: relative; background: #000; }
         #interactive video { width: 100%; height: 100%; object-fit: cover; }
         .laser { position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: red; box-shadow: 0 0 10px red; z-index: 10; transform: translateY(-50%); }
 
+        /* Modal de Quantidade (Igual ao que você pediu) */
         #modal-venda { display: none; background: #1e1e1e; padding: 20px; border-radius: 12px; border: 2px solid var(--success); margin-top: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         
+        .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
         input, button { padding: 14px; background: #252525; border: 1px solid var(--border); border-radius: 8px; color: white; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; }
         .btn-blue { background: var(--primary); font-weight: bold; border: none; cursor: pointer; }
         .btn-green { background: var(--success); font-weight: bold; border: none; cursor: pointer; }
@@ -29,10 +37,9 @@
         th { text-align: left; color: #888; padding-bottom: 10px; }
         td { padding: 12px 0; border-bottom: 1px solid var(--border); }
 
+        /* Toast de Sucesso */
         #toast { visibility: hidden; background: var(--success); color: #fff; text-align: center; border-radius: 8px; padding: 15px; position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); }
-        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 20px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 20px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        #toast.show { visibility: visible; }
     </style>
 </head>
 <body>
@@ -52,7 +59,7 @@
         <p id="venda-preco" style="color:#888; margin: 10px 0;"></p>
         <div style="background: #252525; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
             <label style="display:block; margin-bottom:5px; font-size:12px; color:var(--primary);">QUANTIDADE NA VENDA:</label>
-            <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:24px; border:none; background:transparent; margin:0;">
+            <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:24px; border:none; background:transparent; margin:0; width:100%;">
         </div>
         <button class="btn-green" onclick="confirmarVenda()">FINALIZAR ESTA VENDA</button>
         <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; margin-top:5px; cursor:pointer;">Cancelar</button>
@@ -64,7 +71,7 @@
         <input type="text" id="nome" placeholder="Nome do Produto">
         <input type="number" id="estoque-inicial" placeholder="Qtd em Estoque">
         <input type="number" id="preco-venda" placeholder="Preço R$">
-        <button class="btn-blue" onclick="cadastrar()">SALVAR PRODUTO</button>
+        <button class="btn-blue" onclick="cadastrar()">CADASTRAR PRODUTO</button>
     </div>
 
     <div class="card">
@@ -83,10 +90,12 @@
 </div>
 
 <script>
+    // Carregar dados de forma segura (sem perda de dados)
     let estoque = JSON.parse(localStorage.getItem('adega_v5_estoque')) || [];
     let vendas = JSON.parse(localStorage.getItem('adega_v5_vendas')) || [];
     let itemAtual = null;
 
+    // Função de Bip Reativada
     function somBip() {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator();
@@ -97,7 +106,7 @@
     }
 
     function ligarScanner() {
-        somBip(); // Ativa áudio
+        somBip(); // Desbloqueia áudio no navegador
         document.getElementById('interactive').style.display = 'block';
         document.getElementById('modal-venda').style.display = 'none';
 
@@ -116,8 +125,6 @@
             somBip();
             Quagga.stop();
             document.getElementById('interactive').style.display = 'none';
-            
-            // Abre Opção de Quantidade
             document.getElementById('modal-venda').style.display = 'block';
             document.getElementById('venda-nome').innerText = itemAtual.nome;
             document.getElementById('venda-preco').innerText = "Valor Unitário: R$ " + itemAtual.preco.toFixed(2);
@@ -132,6 +139,7 @@
         const qtd = parseInt(document.getElementById('venda-qtd').value);
         if(itemAtual.qtd >= qtd) {
             itemAtual.qtd -= qtd;
+            // Registro correto para o relatório
             vendas.push({
                 data: new Date().toLocaleDateString(),
                 item: itemAtual.nome,
@@ -140,9 +148,9 @@
             });
             salvarTudo();
             cancelarVenda();
-            mostrarSucesso("Venda de " + qtd + "x " + itemAtual.nome + " Concluída!");
+            mostrarSucesso("Venda registrada!");
         } else {
-            alert("Estoque insuficiente! Você só tem " + itemAtual.qtd + " unidades.");
+            alert("Estoque insuficiente! Disponível: " + itemAtual.qtd);
         }
     }
 
@@ -159,7 +167,7 @@
             qtd: parseInt(document.getElementById('estoque-inicial').value) || 0,
             preco: parseFloat(document.getElementById('preco-venda').value) || 0
         };
-        if(!item.nome || !item.ean) return alert("Erro: Nome e Código de Barras são obrigatórios!");
+        if(!item.nome || !item.ean) return alert("Preencha Nome e Código!");
         estoque.push(item);
         salvarTudo();
         mostrarSucesso("Produto Cadastrado!");
@@ -213,7 +221,7 @@
     function gerarRelatorioPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Relatório de Movimentação - Mensal", 14, 20);
+        doc.text("Relatório de Vendas - Mensal", 14, 20);
         
         const rows = vendas.map(v => [v.data, v.item, v.qtd, `R$ ${v.total.toFixed(2)}`]);
         const total = vendas.reduce((acc, v) => acc + v.total, 0);
