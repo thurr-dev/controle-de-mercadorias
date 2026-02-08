@@ -106,31 +106,25 @@ function finalizarVenda() {
     if(alertas.length > 0) window.open(`https://wa.me/${NUMERO_ZAP}?text=${window.encodeURIComponent(alertas.join("\n"))}`);
 }
 
-function gerarPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.text("RELATORIO DE VENDAS - ADEGA", 20, 20);
-    let y = 35;
-    vendas.forEach(v => {
-        if(y > 280) { doc.addPage(); y = 20; }
-        doc.text(`${v.data}: R$ ${v.valor.toFixed(2)}`, 20, y);
-        y += 10;
-    });
-    doc.save("vendas_adega.pdf");
-}
-
-function gerarExcel() {
-    const ws = XLSX.utils.json_to_sheet(vendas);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Vendas");
-    XLSX.writeFile(wb, "vendas_adega.xlsx");
+function registrarDevolucao(ean) {
+    const p = estoque.find(i => i.ean === ean);
+    if (!p) return;
+    const qtdDev = prompt(`Devolução de ${p.nome}\nQuantas unidades retornam ao estoque?`, "1");
+    if (qtdDev && parseInt(qtdDev) > 0) {
+        const qtd = parseInt(qtdDev);
+        p.qtd += qtd;
+        const dataH = new Date().toLocaleDateString('pt-br', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        vendas.push({ data: dataH + " (DEVOLUÇÃO)", valor: -(p.preco * qtd), timestamp: new Date().toISOString() });
+        salvar();
+        alert("Stock atualizado e venda estornada!");
+    }
 }
 
 function abrirCalendario(nome, dataVenc) {
     if(!dataVenc || dataVenc.length < 10) { alert("Data inválida!"); return; }
     const partes = dataVenc.split('/');
     const dataFormatada = partes[2] + partes[1] + partes[0];
-    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("VENCIMENTO: "+nome)}&dates=${dataFormatada}/${dataFormatada}`;
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("VENCIMENTO: "+nome)}&dates=${dataFormatada}/${dataFormatada}&details=Validade+Adega`;
     window.open(url, '_blank');
 }
 
@@ -138,9 +132,9 @@ function editarProduto(ean) {
     const p = estoque.find(i => i.ean === ean);
     if(p) {
         p.nome = prompt("Nome:", p.nome) || p.nome;
-        p.qtd = parseInt(prompt("Quantidade:", p.qtd));
-        p.preco = parseFloat(prompt("Preço:", p.preco));
-        p.venc = prompt("Vencimento (DD/MM/AAAA):", p.venc);
+        p.qtd = parseInt(prompt("Quantidade:", p.qtd)) || 0;
+        p.preco = parseFloat(prompt("Preço:", p.preco)) || 0;
+        p.venc = prompt("Vencimento (DD/MM/AAAA):", p.venc) || "";
         salvar();
     }
 }
@@ -176,8 +170,9 @@ function renderEstoque() {
             <td>
                 <div style="display:flex; gap:3px;">
                     <button class="btn-acao btn-edit" onclick="editarProduto('${i.ean}')">✏️</button>
+                    <button class="btn-acao btn-cal" style="background:#e67e22;" onclick="abrirCalendario('${i.nome}', '${i.venc}')">📅</button>
+                    <button class="btn-acao" style="background:#9b59b6;" onclick="registrarDevolucao('${i.ean}')">🔄</button>
                     <button class="btn-acao btn-del" onclick="if(confirm('Eliminar?')){estoque=estoque.filter(x=>x.ean!=='${i.ean}');salvar();}">🗑️</button>
-                    <button class="btn-acao btn-cal" onclick="abrirCalendario('${i.nome}', '${i.venc}')">📅</button>
                 </div>
             </td>
         </tr>`;
@@ -185,17 +180,13 @@ function renderEstoque() {
     div.innerHTML = html + '</table>';
 }
 
-// LÓGICA DO GRÁFICO E RELATÓRIO SEMANAL
 function toggleRelatorio() {
     const cont = document.getElementById('conteudoRelatorio');
     const seta = document.getElementById('seta-relatorio');
     if (cont.style.display === 'none') {
-        cont.style.display = 'block';
-        seta.innerText = '▲';
-        renderizarGrafico();
+        cont.style.display = 'block'; seta.innerText = '▲'; renderizarGrafico();
     } else {
-        cont.style.display = 'none';
-        seta.innerText = '▼';
+        cont.style.display = 'none'; seta.innerText = '▼';
     }
 }
 
@@ -203,7 +194,7 @@ function agruparVendasPorSemana() {
     const semanas = {};
     vendas.forEach(v => {
         const d = new Date(v.timestamp);
-        d.setDate(d.getDate() - d.getDay()); // Ajusta para o domingo daquela semana
+        d.setDate(d.getDate() - d.getDay());
         const label = d.toLocaleDateString('pt-br', {day:'2-digit', month:'2-digit'});
         semanas[label] = (semanas[label] || 0) + v.valor;
     });
@@ -218,27 +209,35 @@ function renderizarGrafico() {
         type: 'bar',
         data: {
             labels: Object.keys(dados),
-            datasets: [{
-                label: 'Total R$',
-                data: Object.values(dados),
-                backgroundColor: '#3498db'
-            }]
+            datasets: [{ label: 'R$', data: Object.values(dados), backgroundColor: '#3498db' }]
         },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, grid: { color: '#333' } } }
-        }
+        options: { responsive: true, plugins: { legend: { display: false } } }
     });
 }
 
 function gerarRelatorioSemanal() {
     const dados = agruparVendasPorSemana();
-    const rel = Object.keys(dados).map(s => ({ "Semana (Início)": s, "Total Vendido R$": dados[s].toFixed(2) }));
+    const rel = Object.keys(dados).map(s => ({ "Semana": s, "Total R$": dados[s].toFixed(2) }));
     const ws = XLSX.utils.json_to_sheet(rel);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Semanal");
-    XLSX.writeFile(wb, "relatorio_semanal_adega.xlsx");
+    XLSX.writeFile(wb, "vendas_semanais.xlsx");
+}
+
+function gerarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.text("VENDAS ADEGA", 20, 20);
+    let y = 30;
+    vendas.slice(-20).forEach(v => { doc.text(`${v.data}: R$ ${v.valor.toFixed(2)}`, 20, y); y += 10; });
+    doc.save("vendas.pdf");
+}
+
+function gerarExcel() {
+    const ws = XLSX.utils.json_to_sheet(vendas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Vendas");
+    XLSX.writeFile(wb, "vendas_completo.xlsx");
 }
 
 renderEstoque();
