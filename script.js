@@ -1,5 +1,6 @@
 const KEY_ESTOQUE = 'adega_master_estoque';
 const KEY_VENDAS = 'adega_master_vendas';
+const NUMERO_ZAP = "5511988207302";
 
 function migrarDados() {
     let estoqueMigrado = JSON.parse(localStorage.getItem(KEY_ESTOQUE)) || [];
@@ -27,7 +28,6 @@ let estoque = dadosIniciais.estoqueMigrado;
 let vendas = dadosIniciais.vendasMigradas;
 let carrinho = [];
 let html5QrCode;
-const NUMERO_ZAP = "5511988207302";
 
 function mascaraData(i) {
     let v = i.value.replace(/\D/g, '');
@@ -88,14 +88,14 @@ function renderCarrinho() {
 
 function finalizarVenda() {
     let alertas = [];
-    const dataH = new Date().toLocaleDateString('pt-pt', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const dataH = new Date().toLocaleDateString('pt-br', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     let totalV = 0;
     carrinho.forEach(c => {
         const e = estoque.find(i => i.ean === c.ean);
         if(e) {
             e.qtd -= c.qtdVenda;
             totalV += (c.preco * c.qtdVenda);
-            if(e.qtd <= 5) alertas.push(`🚨 *${e.nome}* A ACABAR! Restam ${e.qtd}.`);
+            if(e.qtd <= 5) alertas.push(`🚨 *${e.nome}* ACABANDO! Restam ${e.qtd}.`);
         }
     });
     vendas.push({ data: dataH, valor: totalV, timestamp: new Date().toISOString() });
@@ -123,6 +123,18 @@ function gerarExcel() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Vendas");
     XLSX.writeFile(wb, "vendas_adega.xlsx");
+}
+
+function abrirCalendario(nome, dataVenc) {
+    if(!dataVenc || dataVenc.length < 10) {
+        alert("Produto sem data de vencimento válida!");
+        return;
+    }
+    const partes = dataVenc.split('/');
+    const dataFormatada = partes[2] + partes[1] + partes[0];
+    const titulo = encodeURIComponent("VENCIMENTO: " + nome);
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dataFormatada}/${dataFormatada}&details=Aviso+de+validade+da+Mini+Adega&sf=true&output=xml`;
+    window.open(url, '_blank');
 }
 
 function editarProduto(ean) {
@@ -168,6 +180,7 @@ function renderEstoque() {
                 <div style="display:flex; gap:3px;">
                     <button class="btn-acao btn-edit" onclick="editarProduto('${i.ean}')">✏️</button>
                     <button class="btn-acao btn-del" onclick="if(confirm('Eliminar?')){estoque=estoque.filter(x=>x.ean!=='${i.ean}');salvar();}">🗑️</button>
+                    <button class="btn-acao btn-cal" onclick="abrirCalendario('${i.nome}', '${i.venc}')">📅</button>
                 </div>
             </td>
         </tr>`;
