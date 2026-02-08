@@ -28,6 +28,7 @@ let estoque = dadosIniciais.estoqueMigrado;
 let vendas = dadosIniciais.vendasMigradas;
 let carrinho = [];
 let html5QrCode;
+let meuGrafico = null;
 
 function mascaraData(i) {
     let v = i.value.replace(/\D/g, '');
@@ -126,14 +127,10 @@ function gerarExcel() {
 }
 
 function abrirCalendario(nome, dataVenc) {
-    if(!dataVenc || dataVenc.length < 10) {
-        alert("Produto sem data de vencimento válida!");
-        return;
-    }
+    if(!dataVenc || dataVenc.length < 10) { alert("Data inválida!"); return; }
     const partes = dataVenc.split('/');
     const dataFormatada = partes[2] + partes[1] + partes[0];
-    const titulo = encodeURIComponent("VENCIMENTO: " + nome);
-    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dataFormatada}/${dataFormatada}&details=Aviso+de+validade+da+Mini+Adega&sf=true&output=xml`;
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("VENCIMENTO: "+nome)}&dates=${dataFormatada}/${dataFormatada}`;
     window.open(url, '_blank');
 }
 
@@ -186,6 +183,62 @@ function renderEstoque() {
         </tr>`;
     });
     div.innerHTML = html + '</table>';
+}
+
+// LÓGICA DO GRÁFICO E RELATÓRIO SEMANAL
+function toggleRelatorio() {
+    const cont = document.getElementById('conteudoRelatorio');
+    const seta = document.getElementById('seta-relatorio');
+    if (cont.style.display === 'none') {
+        cont.style.display = 'block';
+        seta.innerText = '▲';
+        renderizarGrafico();
+    } else {
+        cont.style.display = 'none';
+        seta.innerText = '▼';
+    }
+}
+
+function agruparVendasPorSemana() {
+    const semanas = {};
+    vendas.forEach(v => {
+        const d = new Date(v.timestamp);
+        d.setDate(d.getDate() - d.getDay()); // Ajusta para o domingo daquela semana
+        const label = d.toLocaleDateString('pt-br', {day:'2-digit', month:'2-digit'});
+        semanas[label] = (semanas[label] || 0) + v.valor;
+    });
+    return semanas;
+}
+
+function renderizarGrafico() {
+    const dados = agruparVendasPorSemana();
+    const ctx = document.getElementById('graficoVendas').getContext('2d');
+    if(meuGrafico) meuGrafico.destroy();
+    meuGrafico = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(dados),
+            datasets: [{
+                label: 'Total R$',
+                data: Object.values(dados),
+                backgroundColor: '#3498db'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, grid: { color: '#333' } } }
+        }
+    });
+}
+
+function gerarRelatorioSemanal() {
+    const dados = agruparVendasPorSemana();
+    const rel = Object.keys(dados).map(s => ({ "Semana (Início)": s, "Total Vendido R$": dados[s].toFixed(2) }));
+    const ws = XLSX.utils.json_to_sheet(rel);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Semanal");
+    XLSX.writeFile(wb, "relatorio_semanal_adega.xlsx");
 }
 
 renderEstoque();
