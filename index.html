@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV Profissional - Relatórios e Validade</title>
+    <title>PDV Profissional - Entrada Manual</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -14,9 +14,6 @@
         .container { max-width: 600px; margin: auto; }
         .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
         
-        #interactive.viewport { width: 100%; height: 250px; border: 2px solid var(--primary); display: none; border-radius: 15px; overflow: hidden; position: relative; }
-        #modal-venda { display: none; background: #222; padding: 20px; border-radius: 12px; border: 2px solid var(--success); margin-top: 15px; text-align: center; }
-        
         input, button { padding: 14px; background: #252525; border: 1px solid var(--border); border-radius: 8px; color: white; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
         label { display: block; text-align: left; margin-bottom: 5px; font-size: 13px; color: #888; }
         .btn-blue { background: var(--primary); font-weight: bold; border: none; cursor: pointer; }
@@ -25,62 +22,137 @@
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { text-align: left; color: #888; padding-bottom: 10px; }
         td { padding: 10px 0; border-bottom: 1px solid var(--border); }
-        .btn-cal { background: none; border: 1px solid var(--warning); color: var(--warning); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; width: auto; }
+        .btn-cal { background: none; border: 1px solid var(--warning); color: var(--warning); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; width: auto; margin-top: 5px; }
 
         #toast { visibility: hidden; background: var(--success); color: #fff; text-align: center; border-radius: 8px; padding: 15px; position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); }
         #toast.show { visibility: visible; }
+        #interactive.viewport { width: 100%; height: 200px; display: none; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div id="toast">✅ Operação Realizada!</div>
-    <h2 style="text-align:center; color:var(--primary);">🏪 Controle de Vendas</h2>
+    <h2 style="text-align:center; color:var(--primary);">🏪 PDV com Validade</h2>
 
-    <button class="btn-blue" onclick="abrirScanner()">📷 ESCANEAR PARA VENDER</button>
+    <button class="btn-blue" onclick="abrirScanner()">📷 ESCANEAR CÓDIGO</button>
     <div id="interactive" class="viewport"></div>
-
-    <div id="modal-venda">
-        <h3 id="venda-nome" style="color:var(--success); margin:0;">NOME</h3>
-        <p id="venda-preco" style="color:#888;"></p>
-        <label>Quantidade:</label>
-        <input type="number" id="venda-qtd" value="1" min="1" style="text-align:center; font-size:20px;">
-        <button class="btn-green" onclick="confirmarBaixa()">CONFIRMAR VENDA</button>
-        <button onclick="cancelarVenda()" style="background:none; border:none; color:#777; cursor:pointer;">Cancelar</button>
-    </div>
 
     <div class="card">
         <h4>📦 Cadastrar Produto</h4>
         <input type="text" id="ean" placeholder="Código de Barras">
         <input type="text" id="nome" placeholder="Nome do Produto">
-        <input type="number" id="estoque-inicial" placeholder="Qtd em Estoque">
-        <input type="number" id="preco-venda" placeholder="Preço de Venda R$">
-        <label>Data de Vencimento:</label>
-        <input type="date" id="data-vencimento">
+        <input type="number" id="estoque-inicial" placeholder="Quantidade">
+        <input type="number" id="preco-venda" placeholder="Preço R$">
+        
+        <label>Vencimento (DD/MM/AAAA):</label>
+        <input type="text" id="data-vencimento" placeholder="Ex: 31/12/2026" maxlength="10" onkeyup="mascaraData(this)">
+        
         <button class="btn-blue" onclick="cadastrar()">CADASTRAR PRODUTO</button>
     </div>
 
     <div class="card">
         <h4>📋 Estoque & Validade</h4>
         <table>
-            <thead><tr><th>Item / Vencimento</th><th>Qtd</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Produto/Venc.</th><th>Qtd</th><th>Ações</th></tr></thead>
             <tbody id="listaProdutos"></tbody>
         </table>
-    </div>
-
-    <div class="card">
-        <h4>📈 Relatório Semanal</h4>
-        <div style="height: 200px;"><canvas id="graficoVendas"></canvas></div>
-        <button class="btn-blue" style="margin-top:20px;" onclick="gerarRelatorioPDF()">📊 BAIXAR RELATÓRIO PDF</button>
     </div>
 </div>
 
 <script>
     let estoque = JSON.parse(localStorage.getItem('loja_estoque')) || [];
-    let historicoVendas = JSON.parse(localStorage.getItem('loja_vendas')) || [];
-    let produtoEncontrado = null;
 
-    // --- Scanner ---
+    // Máscara para digitar a data com barras automaticamente
+    function mascaraData(campo) {
+        let v = campo.value.replace(/\D/g, ""); // Remove tudo que não é número
+        if (v.length >= 3 && v.length <= 4) campo.value = v.substring(0, 2) + "/" + v.substring(2);
+        if (v.length >= 5) campo.value = v.substring(0, 2) + "/" + v.substring(2, 4) + "/" + v.substring(4, 8);
+    }
+
+    function cadastrar() {
+        const dataInput = document.getElementById('data-vencimento').value;
+        
+        // Validação simples de data
+        if(dataInput.length > 0 && dataInput.length < 10) {
+            alert("Digite a data completa: DD/MM/AAAA");
+            return;
+        }
+
+        const item = {
+            id: Date.now(),
+            ean: document.getElementById('ean').value,
+            nome: document.getElementById('nome').value,
+            qtd: parseInt(document.getElementById('estoque-inicial').value) || 0,
+            preco: parseFloat(document.getElementById('preco-venda').value) || 0,
+            vencimento: dataInput // Salva como string digitada
+        };
+        
+        if(!item.nome) { alert("Nome é obrigatório"); return; }
+        
+        estoque.push(item);
+        salvar();
+        limparCampos();
+    }
+
+    // Função para adicionar ao Calendário do Google
+    function addCalendario(nome, dataPtBR) {
+        try {
+            // Converte DD/MM/AAAA para AAAAMMDD
+            const partes = dataPtBR.split('/');
+            const dataFormatada = partes[2] + partes[1] + partes[0];
+            
+            const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${encodeURIComponent(nome)}&dates=${dataFormatada}/${dataFormatada}&details=Produto+vencendo+no+estoque&sf=true&output=xml`;
+            
+            window.open(url, '_blank');
+        } catch(e) {
+            alert("Erro ao gerar link do calendário. Verifique se a data está correta.");
+        }
+    }
+
+    function salvar() {
+        localStorage.setItem('loja_estoque', JSON.stringify(estoque));
+        renderizar();
+    }
+
+    function renderizar() {
+        const corpo = document.getElementById('listaProdutos');
+        corpo.innerHTML = '';
+        estoque.forEach(i => {
+            corpo.innerHTML += `<tr>
+                <td>
+                    <strong>${i.nome}</strong><br>
+                    <small style="color:${checarVencimento(i.vencimento) ? 'red' : '#888'}">Venc: ${i.vencimento || '---'}</small><br>
+                    ${i.vencimento ? `<button class="btn-cal" onclick="addCalendario('${i.nome}', '${i.vencimento}')">📅 Add Agenda</button>` : ''}
+                </td>
+                <td>${i.qtd}</td>
+                <td><button onclick="remover(${i.id})" style="background:none; border:none; color:red; cursor:pointer; font-size:18px;">🗑️</button></td>
+            </tr>`;
+        });
+    }
+
+    // Função bônus: avisa se a data digitada já passou ou está perto
+    function checarVencimento(dataStr) {
+        if(!dataStr) return false;
+        const partes = dataStr.split('/');
+        const dataVenc = new Date(partes[2], partes[1] - 1, partes[0]);
+        return dataVenc < new Date();
+    }
+
+    function remover(id) {
+        if(confirm("Excluir produto?")) {
+            estoque = estoque.filter(i => i.id !== id);
+            salvar();
+        }
+    }
+
+    function limparCampos() {
+        document.querySelectorAll('input').forEach(i => i.value = '');
+        const t = document.getElementById('toast');
+        t.className = "show"; setTimeout(() => t.className = "", 3000);
+    }
+
+    // Funções do Scanner (Mantidas)
     function abrirScanner() {
         document.getElementById('interactive').style.display = 'block';
         Quagga.init({
@@ -90,129 +162,13 @@
     }
 
     Quagga.onDetected(data => {
-        const cod = data.codeResult.code;
-        produtoEncontrado = estoque.find(i => i.ean === cod);
-        if(produtoEncontrado) {
-            Quagga.stop();
-            document.getElementById('interactive').style.display = 'none';
-            document.getElementById('modal-venda').style.display = 'block';
-            document.getElementById('venda-nome').innerText = produtoEncontrado.nome;
-            document.getElementById('venda-preco').innerText = "R$ " + produtoEncontrado.preco.toFixed(2);
-        } else {
-            document.getElementById('ean').value = cod;
-            showToast("Código lido! Complete o cadastro.");
-        }
+        document.getElementById('ean').value = data.codeResult.code;
+        Quagga.stop();
+        document.getElementById('interactive').style.display = 'none';
+        document.getElementById('nome').focus();
     });
 
-    // --- Funções Principais ---
-    function cadastrar() {
-        const item = {
-            id: Date.now(),
-            ean: document.getElementById('ean').value,
-            nome: document.getElementById('nome').value,
-            qtd: parseInt(document.getElementById('estoque-inicial').value) || 0,
-            preco: parseFloat(document.getElementById('preco-venda').value) || 0,
-            vencimento: document.getElementById('data-vencimento').value
-        };
-        
-        if(!item.nome) return alert("Digite o nome do produto!");
-        
-        estoque.push(item);
-        salvar();
-        showToast("Produto Cadastrado!");
-        document.querySelectorAll('.card input').forEach(i => i.value = '');
-    }
-
-    function confirmarBaixa() {
-        const qtd = parseInt(document.getElementById('venda-qtd').value);
-        if(produtoEncontrado.qtd >= qtd) {
-            produtoEncontrado.qtd -= qtd;
-            historicoVendas.push({
-                data: new Date().toLocaleDateString(),
-                item: produtoEncontrado.nome,
-                qtd: qtd,
-                total: produtoEncontrado.preco * qtd
-            });
-            salvar();
-            cancelarVenda();
-            showToast("Venda realizada!");
-        } else { alert("Estoque insuficiente!"); }
-    }
-
-    function cancelarVenda() { document.getElementById('modal-venda').style.display = 'none'; produtoEncontrado = null; }
-
-    function salvar() {
-        localStorage.setItem('loja_estoque', JSON.stringify(estoque));
-        localStorage.setItem('loja_vendas', JSON.stringify(historicoVendas));
-        renderizar();
-        atualizarGrafico();
-    }
-
-    function renderizar() {
-        const corpo = document.getElementById('listaProdutos');
-        corpo.innerHTML = '';
-        estoque.forEach(i => {
-            const dataFormatada = i.vencimento ? i.vencimento.split('-').reverse().join('/') : '---';
-            corpo.innerHTML += `<tr>
-                <td>
-                    <strong>${i.nome}</strong><br>
-                    <small>Venc: ${dataFormatada}</small><br>
-                    ${i.vencimento ? `<button class="btn-cal" onclick="addCalendario('${i.nome}', '${i.vencimento}')">📅 Agendar Alerta</button>` : ''}
-                </td>
-                <td>${i.qtd}</td>
-                <td><button onclick="remover(${i.id})" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button></td>
-            </tr>`;
-        });
-    }
-
-    // --- Google Calendar ---
-    function addCalendario(nome, data) {
-        const dataLimpa = data.replace(/-/g, ''); // Formato YYYYMMDD
-        const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${encodeURIComponent(nome)}&dates=${dataLimpa}/${dataLimpa}&details=Verificar+estoque+do+produto+${encodeURIComponent(nome)}&sf=true&output=xml`;
-        window.open(url, '_blank');
-    }
-
-    function remover(id) { 
-        if(confirm("Deseja excluir este item?")) {
-            estoque = estoque.filter(i => i.id !== id); 
-            salvar(); 
-        }
-    }
-
-    function showToast(msg) {
-        const t = document.getElementById('toast');
-        t.innerText = "✅ " + msg;
-        t.className = "show"; setTimeout(() => t.className = "", 3000);
-    }
-
-    // --- Gráfico e PDF ---
-    let chart;
-    function atualizarGrafico() {
-        const ctx = document.getElementById('graficoVendas').getContext('2d');
-        const ultimos7Dias = Array.from({length: 7}, (_, i) => {
-            const d = new Date(); d.setDate(d.getDate() - i);
-            return d.toLocaleDateString();
-        }).reverse();
-        const valores = ultimos7Dias.map(dia => historicoVendas.filter(v => v.data === dia).reduce((acc, v) => acc + v.total, 0));
-        if(chart) chart.destroy();
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: { labels: ultimos7Dias, datasets: [{ label: 'Vendas R$', data: valores, borderColor: '#3498db', tension: 0.3 }] },
-            options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#333' } } } }
-        });
-    }
-
-    function gerarRelatorioPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("Relatório de Vendas - Sistema PDV", 14, 15);
-        const rows = historicoVendas.map(v => [v.data, v.item, v.qtd, `R$ ${v.total.toFixed(2)}`]);
-        doc.autoTable({ head: [['Data', 'Produto', 'Qtd', 'Total']], body: rows, startY: 25 });
-        doc.save("vendas.pdf");
-    }
-
     renderizar();
-    atualizarGrafico();
 </script>
 </body>
 </html>
