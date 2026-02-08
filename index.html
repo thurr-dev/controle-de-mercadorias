@@ -3,27 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Adega Pro - Backup & Validade</title>
+    <title>Adega Pro - Gestão Total</title>
+    
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         :root { --bg: #0d0d0d; --card: #1a1a1a; --primary: #3498db; --success: #2ecc71; --danger: #e74c3c; --text: #eee; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .card { background: var(--card); border: 1px solid #333; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
         #reader { width: 100%; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 10px; border: 2px solid var(--primary) !important; }
-        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; font-size: 16px; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; font-size: 14px; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase; }
         .btn-blue { background: var(--primary); }
         .btn-green { background: var(--success); }
         .btn-pdf { background: #8e44ad; }
+        .btn-excel { background: #27ae60; }
+        
         .btn-acao { padding: 8px; font-size: 12px; width: auto; margin: 0 2px; border-radius: 4px; border: none; color: white; cursor: pointer; }
         .btn-edit { background: #f39c12; }
         .btn-del { background: #e74c3c; }
         .btn-cal { background: #e67e22; }
+
         input { width: 100%; padding: 14px; background: #252525; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
         .total-venda { font-size: 1.8em; text-align: right; color: var(--success); margin: 15px 0; font-weight: bold; }
+        
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #222; }
         .alerta-estoque { color: #f1c40f; font-weight: bold; }
+        .flex-btns { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -38,19 +47,22 @@
 </div>
 
 <div class="card">
-    <h3>📂 Relatórios e Backup</h3>
-    <button class="btn btn-pdf" onclick="gerarPDF()">📄 GERAR BACKUP MENSAL (PDF)</button>
+    <h3>📂 Exportar Vendas (Backup)</h3>
+    <div class="flex-btns">
+        <button class="btn btn-pdf" onclick="gerarPDF()">📄 PDF</button>
+        <button class="btn btn-excel" onclick="gerarExcel()">📊 EXCEL</button>
+    </div>
 </div>
 
 <div class="card">
     <h3>📦 Cadastro de Produto</h3>
-    <input type="number" id="cad-ean" placeholder="Código de Barras" readonly style="background:#111;">
+    <input type="text" id="cad-ean" placeholder="Código de Barras" readonly style="background:#111; color:#666;">
     <input type="text" id="cad-nome" placeholder="Nome do Produto">
     <input type="number" id="cad-qtd" placeholder="Qtd em Estoque">
     <input type="number" id="cad-preco" placeholder="Preço R$">
-    <label style="font-size:12px; color:var(--primary);">DATA DE VENCIMENTO:</label>
-    <input type="date" id="cad-venc">
-    <button class="btn btn-blue" onclick="salvarProduto()">CADASTRAR</button>
+    <label style="font-size:12px; color:var(--primary); font-weight:bold;">VENCIMENTO (DD/MM/AAAA):</label>
+    <input type="text" id="cad-venc" placeholder="Ex: 10/05/2026" maxlength="10" onkeyup="mascaraData(this)">
+    <button class="btn btn-blue" onclick="salvarProduto()">CADASTRAR PRODUTO</button>
 </div>
 
 <div class="card">
@@ -59,12 +71,19 @@
 </div>
 
 <script>
-    const { jsPDF } = window.jspdf;
-    let estoque = JSON.parse(localStorage.getItem('adega_v13_est')) || [];
-    let vendas = JSON.parse(localStorage.getItem('adega_v13_ven')) || [];
+    let estoque = JSON.parse(localStorage.getItem('adega_v14_est')) || [];
+    let vendas = JSON.parse(localStorage.getItem('adega_v14_ven')) || [];
     let carrinho = [];
     let html5QrCode;
-    const WHATS = "5531997371625";
+    const NUMERO_ZAP = "5531997371625";
+
+    // Máscara para digitar data com barras automáticas
+    function mascaraData(i) {
+        let v = i.value.replace(/\D/g, '');
+        if (v.length > 2) v = v.substring(0,2) + '/' + v.substring(2);
+        if (v.length > 5) v = v.substring(0,5) + '/' + v.substring(5,9);
+        i.value = v;
+    }
 
     function bip() {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -90,7 +109,7 @@
     function processarLeitura(codigo) {
         const produto = estoque.find(i => i.ean === codigo);
         if (produto) {
-            const qtd = prompt(`Vender: ${produto.nome}\nQuantas unidades?`, "1");
+            const qtd = prompt(`Produto: ${produto.nome}\nQuantas unidades?`, "1");
             if (qtd && parseInt(qtd) > 0) {
                 const noCarrinho = carrinho.find(c => c.ean === codigo);
                 if (noCarrinho) noCarrinho.qtdVenda += parseInt(qtd); else carrinho.push({...produto, qtdVenda: parseInt(qtd)});
@@ -98,7 +117,7 @@
             }
         } else {
             document.getElementById('cad-ean').value = codigo;
-            alert("Produto novo! Preencha o cadastro.");
+            alert("Novo produto! Digite o nome e a validade.");
         }
     }
 
@@ -118,8 +137,7 @@
 
     function finalizarVenda() {
         let alertas = [];
-        const hoje = new Date();
-        const dataH = hoje.toLocaleDateString('pt-br', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        const dataH = new Date().toLocaleDateString('pt-br', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         let totalV = 0;
 
         carrinho.forEach(c => {
@@ -127,53 +145,45 @@
             if(e) {
                 e.qtd -= c.qtdVenda;
                 totalV += (c.preco * c.qtdVenda);
-                if(e.qtd <= 5) alertas.push(`⚠️ *${e.nome}* com apenas ${e.qtd} unidades!`);
+                if(e.qtd <= 5) alertas.push(`🚨 *${e.nome}* ACABANDO! Restam ${e.qtd}.`);
             }
         });
 
-        vendas.push({ data: dataH, valor: totalV, timestamp: hoje.getTime() });
+        vendas.push({ data: dataH, valor: totalV, timestamp: new Date().toISOString() });
         carrinho = [];
         salvar();
         alert("Venda registrada!");
-        if(alertas.length > 0) window.open(`https://wa.me/${WHATS}?text=${window.encodeURIComponent(alertas.join("\n"))}`);
+        if(alertas.length > 0) window.open(`https://wa.me/${NUMERO_ZAP}?text=${window.encodeURIComponent(alertas.join("\n"))}`);
     }
 
-    // --- FUNÇÃO DE BACKUP PDF ---
+    // --- EXPORTAÇÃO PDF ---
     function gerarPDF() {
+        const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const agora = new Date();
-        const mesAno = agora.toLocaleDateString('pt-br', { month: 'long', year: 'numeric' });
-        
-        doc.setFontSize(18);
-        doc.text("RELATÓRIO MENSAL DE VENDAS", 20, 20);
-        doc.setFontSize(12);
-        doc.text(`Período: ${mesAno}`, 20, 30);
-        doc.text("------------------------------------------------------------", 20, 35);
-
-        let y = 45;
-        let totalGeral = 0;
-
+        doc.text("RELATORIO DE VENDAS - ADEGA", 20, 20);
+        let y = 35;
         vendas.forEach(v => {
-            if (y > 270) { doc.addPage(); y = 20; }
-            doc.text(`${v.data} --- R$ ${v.valor.toFixed(2)}`, 20, y);
-            totalGeral += v.valor;
+            doc.text(`${v.data}: R$ ${v.valor.toFixed(2)}`, 20, y);
             y += 10;
         });
+        doc.save("vendas.pdf");
+    }
 
-        doc.setFontSize(14);
-        doc.text("------------------------------------------------------------", 20, y + 5);
-        doc.text(`FATURAMENTO TOTAL: R$ ${totalGeral.toFixed(2)}`, 20, y + 15);
-
-        doc.save(`Vendas_${mesAno.replace(' ','_')}.pdf`);
+    // --- EXPORTAÇÃO EXCEL ---
+    function gerarExcel() {
+        const ws = XLSX.utils.json_to_sheet(vendas);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Vendas");
+        XLSX.writeFile(wb, "vendas_adega.xlsx");
     }
 
     function editarProduto(ean) {
         const p = estoque.find(i => i.ean === ean);
         if(p) {
             p.nome = prompt("Nome:", p.nome) || p.nome;
-            p.qtd = parseInt(prompt("Qtd Estoque:", p.qtd));
+            p.qtd = parseInt(prompt("Quantidade:", p.qtd));
             p.preco = parseFloat(prompt("Preço:", p.preco));
-            p.venc = prompt("Vencimento (AAAA-MM-DD):", p.venc);
+            p.venc = prompt("Vencimento (DD/MM/AAAA):", p.venc);
             salvar();
         }
     }
@@ -186,15 +196,15 @@
             preco: parseFloat(document.getElementById('cad-preco').value) || 0,
             venc: document.getElementById('cad-venc').value
         };
-        if(!p.ean || !p.nome) return alert("Preencha os dados!");
+        if(!p.ean || !p.nome) return alert("Preencha Nome e Código!");
         estoque.push(p);
         salvar();
         document.querySelectorAll('input').forEach(i => i.value = '');
     }
 
     function salvar() {
-        localStorage.setItem('adega_v13_est', JSON.stringify(estoque));
-        localStorage.setItem('adega_v13_ven', JSON.stringify(vendas));
+        localStorage.setItem('adega_v14_est', JSON.stringify(estoque));
+        localStorage.setItem('adega_v14_ven', JSON.stringify(vendas));
         renderEstoque();
         renderCarrinho();
     }
@@ -203,15 +213,14 @@
         const div = document.getElementById('listaEstoque');
         let html = '<table><tr><th>Item</th><th>Qtd</th><th>Ações</th></tr>';
         estoque.forEach(i => {
-            const dataF = i.venc ? i.venc.split('-').reverse().join('/') : 'S/ Data';
             html += `<tr>
-                <td><strong>${i.nome}</strong><br><small>Val: ${dataF}</small></td>
+                <td><strong>${i.nome}</strong><br><small>Val: ${i.venc || '---'}</small></td>
                 <td class="${i.qtd <= 5 ? 'alerta-estoque' : ''}">${i.qtd}</td>
                 <td>
                     <div style="display:flex; gap:3px;">
                         <button class="btn-acao btn-edit" onclick="editarProduto('${i.ean}')">✏️</button>
                         <button class="btn-acao btn-del" onclick="estoque=estoque.filter(x=>x.ean!=='${i.ean}');salvar();">🗑️</button>
-                        <button class="btn-acao btn-cal" onclick="window.open('https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${encodeURIComponent(i.nome)}&dates=${i.venc.replace(/-/g,'')}/${i.venc.replace(/-/g,'')}&sf=true&output=xml')">📅</button>
+                        <button class="btn-acao btn-cal" onclick="window.open('https://www.google.com/calendar/render?action=TEMPLATE&text=VENCIMENTO:+${encodeURIComponent(i.nome)}&dates='+('${i.venc}'.split('/').reverse().join(''))+'/'+('${i.venc}'.split('/').reverse().join(''))+'&sf=true&output=xml')">📅</button>
                     </div>
                 </td>
             </tr>`;
